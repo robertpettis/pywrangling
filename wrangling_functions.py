@@ -94,7 +94,8 @@ def replace(df, var, value, where=''):
     Returns:
     DataFrame: The DataFrame with values replaced.
     """
-
+    df.reset_index(drop=True, inplace=True)
+    
     def evaluate_value(row):
         if isinstance(value, str) and re.match(r'\w+\[n[+-]\d+\]', value):
             col_name, index_shift = re.match(r'(\w+)\[n([+-]\d+)\]', value).groups()
@@ -113,32 +114,35 @@ def replace(df, var, value, where=''):
             return value
 
     def evaluate_where(row):
-        if where:
-            where_evaluated = where
-            for match in re.findall(r'epros\["\w+"\]\[n[+-]\d+\]', where):
-                col_name, index_shift = re.match(r'epros\["(\w+)"\]\[n([+-]\d+)\]', match).groups()
-                index_shift = int(index_shift)
-                if 0 <= row.name + index_shift < len(df):
-                    value = df.loc[row.name + index_shift, col_name]
-                    if value is not None:
-                        where_evaluated = where_evaluated.replace(match, repr(value))
-                    else:
-                        where_evaluated = where_evaluated.replace(match, repr(np.nan))
-                else:
-                    where_evaluated = where_evaluated.replace(match, repr(np.nan))
-            for match in re.findall(r'epros\["\w+"\]', where):
-                col_name = re.match(r'epros\["(\w+)"\]', match).group(1)
-                value = row[col_name]
-                if value is not None:
-                    where_evaluated = where_evaluated.replace(match, repr(value))
-            if not where_evaluated or not where_evaluated.strip():
-                where_evaluated = 'True'
-            try:
-                return eval(where_evaluated, {'__builtins__': None}, row.to_dict())
-            except TypeError:
-                return False
-        else:
-            return False
+      if where:
+          where_evaluated = where
+          for match in re.findall(r'epros\["\w+"\]\[n[+-]\d+\]', where):
+              col_name, index_shift = re.match(r'epros\["(\w+)"\]\[n([+-]\d+)\]', match).groups()
+              index_shift = int(index_shift)
+              if 0 <= row.name + index_shift < len(df):
+                  value = df.loc[row.name + index_shift, col_name]
+                  if value is not None:
+                      where_evaluated = where_evaluated.replace(match, repr(value))
+                  else:
+                      where_evaluated = where_evaluated.replace(match, repr(np.nan))
+              else:
+                  where_evaluated = where_evaluated.replace(match, repr(np.nan))
+          for match in re.findall(r'epros\["\w+"\]', where):
+              col_name = re.match(r'epros\["(\w+)"\]', match).group(1)
+              value = row[col_name]
+              if value is not None:
+                  where_evaluated = where_evaluated.replace(match, repr(value))
+          if not where_evaluated or not where_evaluated.strip():
+              where_evaluated = 'True'
+          if ' & ' in where or '&&' in where:
+              raise TypeError('The replace function does not support AND operators.')
+          try:
+              return eval(where_evaluated, {'__builtins__': None}, row.to_dict())
+          except TypeError:
+              return False
+      else:
+          return False
+
 
 
 
@@ -146,6 +150,11 @@ def replace(df, var, value, where=''):
     new_values = df_copy.apply(evaluate_value, axis=1)
     where_mask = df_copy.apply(evaluate_where, axis=1)
     df_copy.loc[where_mask, var] = new_values
+
+    # Print the number of rows that were replaced
+    num_rows_replaced = where_mask.sum()
+    print(f'Replaced values in {num_rows_replaced} rows.')
+
     return df_copy
 
 
@@ -176,9 +185,10 @@ def how_is_this_not_a_duplicate(df, unique_cols, new_col_name='problematic_cols'
     problematic_cols = df[duplicates].groupby(unique_cols).apply(lambda x: x.nunique() > 1)
 
     # Create a new column in df which is a list of the problematic columns, but only for duplicate rows
-    df.loc[duplicates, new_col_name] = df[duplicates].apply(lambda row: problematic_cols.loc[tuple(row[col] for col in unique_cols)].index[problematic_cols.loc[tuple(row[col] for col in unique_cols)]].tolist(), axis=1)
+    df.loc[duplicates, new_col_name] = df[duplicates].apply(lambda row: ', '.join(problematic_cols.loc[tuple(row[col] for col in unique_cols)].index[problematic_cols.loc[tuple(row[col] for col in unique_cols)]].tolist()), axis=1)
 
     return df
+
 
 
 
