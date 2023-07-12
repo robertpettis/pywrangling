@@ -1,5 +1,10 @@
-"""This library will make my life easier by including functions for regular 
-tasks."""
+"""
+This library provides a set of functions designed to simplify common data
+wrangling tasks.
+
+It includes functions for renaming columns, moving columns, and replacing
+values in a DataFrame based on certain conditions.
+"""
 
 import pandas as pd  # Main library for data manipulation
 import numpy as np  # Library for numerical operations

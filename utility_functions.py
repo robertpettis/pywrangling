@@ -1,6 +1,14 @@
 """
 These functions provide utility such as sending an email with a given text or sending a text message when conditions are met, etc.
+
+Author: Robert Pettis
+
 """
+
+
+import smtplib
+from email.mime.text import MIMEText
+
 
 
 def send_email_or_text(subject, body, sender, recipients, password):
