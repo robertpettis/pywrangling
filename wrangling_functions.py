@@ -194,6 +194,11 @@ def replace(df, var, value, where='', flag_var=False , print_result = True):
     Returns:
     DataFrame: The DataFrame with values replaced.
     """
+    
+    # TODO: Does not currently handle or statements, isna, notna, len
+    # TODO: flag_var and print_result can probably be removed.
+    
+    
     # Reset index of the DataFrame to ensure that the row-wise operation runs correctly.
     df.reset_index(drop=True, inplace=True)
 
@@ -284,6 +289,8 @@ def replace(df, var, value, where='', flag_var=False , print_result = True):
 
 
 
+
+
 def how_is_this_not_a_duplicate(df, unique_cols, new_col_name='problematic_cols'):
     """
     This function takes a dataframe and a list of columns that should uniquely identify a row.
@@ -348,54 +355,52 @@ def bysort_sequence(df, group_cols, new_col_name, sequence_type='_n'):
     return df
 
 
-
-def create_top_charge(df, statute_col = 'statutes',
-                      incarceration_days_col='incarceration_days',
-                      total_fine_col = 'total_fine', 
-                      total_charges_col = 'total_charges',
-                      convicted_col = 'convicted'
-                      ):
+###############################################################################
+def create_top_charge(df, statute_col, total_charges_col, convicted_col, incarceration_days_col, total_fine_col):
     """
-    This function creates a top charge per observation.
+    Creates a new column 'top_charge' in the dataframe.
 
     Parameters:
-    df (DataFrame): DataFrame containing all the required columns.
-    statute_col (str): Column name with statutes.
-    incarceration_days_col (str): Column name with incarceration days.
-    total_fine_col (str): Column name with total fine.
-    total_charges_col (str): Column name with total charges.
+    df (pd.DataFrame): Input dataframe.
+    statute_col (str): Column in df containing the charges.
+    total_charges_col (str): Column in df containing total number of charges.
+    convicted_col (str): Column in df containing conviction status (1 if convicted, else 0).
+    incarceration_days_col (str): Column in df containing total incarceration time for each charge.
+    fine_col (str): Column in df containing total fine amount for each charge.
 
     Returns:
-    DataFrame: DataFrame with an additional 'top_charge' column.
+    df (pd.DataFrame): Dataframe with a new column 'top_charge'.
     """
+    import numpy as np
 
-    # Filter the DataFrame
-    filtered_df = df[df[total_charges_col] == 1 & df[f'{convicted_col}'] == 1].copy()
-    # Group by 'statute' and calculate median of 'incarceration_days' and 'total_fine'
-    grouped_df = filtered_df.groupby(statute_col).agg({incarceration_days_col: 'median', total_fine_col: 'median'}).reset_index()
-    # Rank based on 'incarceration_days' and 'total_fine'
-    grouped_df['rank'] = grouped_df[incarceration_days_col].rank(method='min', ascending=False) + grouped_df[total_fine_col].rank(method='min', ascending=False)
-    
-    # Create a dictionary to map statute to rank
-    statute_to_rank = dict(zip(grouped_df[statute_col], grouped_df['rank']))
-    
-    # Function to get top charge
+    # Ensure the statutes column is of type string
+    df[statute_col] = df[statute_col].astype(str)
+
+    # Filter out rows where total_charges == 1 and convicted == 1
+    single_charge_df = df[(df[total_charges_col] == 1) & (df[convicted_col] == 1)].copy()
+
+    # Compute a ranking for each charge based on incarceration time and fine, with higher values indicating higher ranks
+    charge_ranks = single_charge_df.groupby(statute_col)[[incarceration_days_col, total_fine_col]].mean().sort_values(by=[incarceration_days_col, total_fine_col], ascending=False).rank(method='min', ascending=False)
+
+    # Define helper function to get top charge
     def get_top_charge(charges):
-        if charges:
-            # Get ranks of charges
-            ranks = [statute_to_rank.get(charge, np.nan) for charge in charges]
-            # Get top charge
-            top_charge = charges[np.nanargmin(ranks)]
-            return top_charge
-        else:
-            return np.nan
-    
-    # Apply function to each row
+        # Handle non-string values gracefully
+        if not isinstance(charges, str):
+            return charges
+        charges = charges.split(';')
+        ranks = [charge_ranks.loc[charge].sum() if charge in charge_ranks.index else np.inf for charge in charges]
+        return charges[np.argmin(ranks)]
+
+    # Apply get_top_charge function to each row
     df['top_charge'] = df[statute_col].apply(get_top_charge)
-    
+
     return df
 
 
+
+
+
+###############################################################################
 def convert_to_units(row, length, unit, conversion_dict):
     if pd.isna(row[unit]):
         return 0
@@ -403,7 +408,7 @@ def convert_to_units(row, length, unit, conversion_dict):
         return row[length] * conversion_dict[row[unit]]
 
 
-
+###############################################################################
 def get_variable_names(*types):
     """
     Retrieve the names of variables of specified types that would be included in Spyder's variable explorer.
@@ -456,5 +461,43 @@ def get_variable_names(*types):
 
 
 
+def count_occurrences_with_offset(df, column, string_to_find, offset=1, inplace=False, new_column_name=None):
+    """
+    This function counts the occurrences of a given string in each row of a specified column in a dataframe, adds an offset, 
+    and appends the results as a new column to the dataframe. Optionally, it can perform the operation in-place.
+    
+    Parameters:
+    df (pd.DataFrame): The pandas dataframe to operate on.
+    column (str): The column in the dataframe where the string is to be searched for.
+    string_to_find (str): The string to search for in each row of the column.
+    offset (int): The number to add to the count of occurrences. Defaults to 1.
+    inplace (bool): If True, appends the results as a new column in the existing dataframe. 
+                    If False, returns a new dataframe with the appended results. Defaults to False.
+    new_column_name (str): The name of the new column that will hold the counts. If not specified, defaults to "{column}_count".
 
+    Returns:
+    df (pd.DataFrame): The dataframe with the added column of string occurrence counts (or the original dataframe if inplace=True).
+
+    Example usage:
+    >>> df = pd.DataFrame({'instruments': ['Euphonium; Trombone', 'Trumpet', 'Percussion; Euphonium; Clarinet']})
+    >>> df_new = count_occurrences_with_offset(df, 'instruments', ';')
+    >>> print(df_new)
+                        instruments  instruments_count
+    0           Euphonium; Trombone                  2
+    1                      Trumpet                  1
+    2  Percussion; Euphonium; Clarinet               3
+    """
+
+    # If no new column name specified, create one based on the searched column
+    if not new_column_name:
+        new_column_name = f"{column}_count"
+
+    # Count occurrences of string_to_find in each row, add offset and store results in new column
+    if inplace:
+        df[new_column_name] = df[column].str.count(string_to_find) + offset
+    else:
+        df = df.copy()
+        df[new_column_name] = df[column].str.count(string_to_find) + offset
+
+    return df
 
