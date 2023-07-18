@@ -181,24 +181,19 @@ def simple_replace(df, var, value, where):
 
 
 
-def replace(df, var, value, where='', flag_var=False , print_result = True):
+def replace(df, var, where, value):
     """
     Function to mimic Stata's replace command.
 
     Parameters:
-    df (DataFrame): The DataFrame to operate on.
+    df (pd.DataFrame): The DataFrame to operate on.
     var (str): The variable (column) to replace values in.
     where (str): A string that represents a condition to be evaluated on the DataFrame.
     value: The value to replace with. This can be a constant value, a column name, or a string representing a relative reference to a value in a column.
 
     Returns:
-    DataFrame: The DataFrame with values replaced.
+    df (pd.DataFrame): The DataFrame with values replaced.
     """
-    
-    # TODO: Does not currently handle or statements, isna, notna, len
-    # TODO: flag_var and print_result can probably be removed.
-    
-    
     # Reset index of the DataFrame to ensure that the row-wise operation runs correctly.
     df.reset_index(drop=True, inplace=True)
 
@@ -231,10 +226,11 @@ def replace(df, var, value, where='', flag_var=False , print_result = True):
         # If the where condition is specified
         if where:
             where_evaluated = where
-            # Split the where condition into individual conditions by '&'
-            conditions = where_evaluated.split(' & ')
+            # Split the where condition into individual conditions by '&' and '|'
+            conditions = re.split(' & | \|', where_evaluated)
             results = []
-            for condition in conditions:
+            
+            for condition in conditions:   
                 # For each condition, replace relative references with actual values from the DataFrame
                 for match in re.findall(r'\w+\[n[+-]\d+\]', condition):
                     col_name, index_shift = re.match(r'(\w+)\[n([+-]\d+)\]', match).groups()
@@ -252,20 +248,41 @@ def replace(df, var, value, where='', flag_var=False , print_result = True):
                         condition = condition.replace(match, repr(np.nan))
                 # Replace column names in the condition with actual values from the DataFrame
                 for match in re.findall(r'\w+', condition):
-                    if "[" not in match and "]" not in match and '"' not in condition and match in df.columns:
-                        value = row[match]
-                        if value is not None:
-                            condition = condition.replace(match, repr(value))
+                    if 'isna' not in condition and 'notna' not in condition and 'len' not in condition: 
+                        if "[" not in match and "]" not in match and '"' not in condition and match in df.columns:
+                            value = row[match]
+                            if pd.notna(value):
+                                condition = condition.replace(match, repr(value))
+                            else:
+                                # If the value is None, replace the relative reference with NaN
+                                condition = condition.replace(match, repr(np.nan))
+                    elif 'len' in condition and match in df.columns: 
+                        value = len(df.columns)
+                        condition = condition.replace('len(', '')
+                        condition = condition.replace(')', '')
+                        condition = condition.replace(match, repr(value))
+                    
+
                 # If the condition is empty or only contains spaces, replace it with 'True'
                 if not condition or not condition.strip():
                     condition = 'True'
                 # Evaluate the condition and add the result to the results list
                 try:
-                    results.append(eval(condition, {'__builtins__': None}, row.to_dict()))
+                    if 'isna' in condition:
+                        col_name = condition.split('.')[0]
+                        results.append(pd.isna(row[col_name]))
+                    elif 'notna' in condition:
+                        col_name = condition.split('.')[0]
+                        results.append(pd.notna(row[col_name]))
+                    elif 'len' in condition:
+                        col_name = condition.split('(')[1]
+                        
+                    else:
+                        results.append(eval(condition, {'__builtins__': None, 'np': np}, row.to_dict()))
                 except TypeError:
-                    results.append(False)
+                    print("typrerror")
             # If all conditions are True, return True. Otherwise, return False.
-            return all(results)
+            return all(results) if ' & ' in where else any(results)
         else:
             # If the where condition is not specified, return True for all rows.
             return True
@@ -276,15 +293,22 @@ def replace(df, var, value, where='', flag_var=False , print_result = True):
     # Evaluate the where condition for each row
     where_mask = df_copy.apply(evaluate_where, axis=1)
     
+    # Identify the rows where the new value is different from the original value
+    changed_mask = df[var] != new_values
+    
+    # Combine the masks to identify the rows where the where condition is True and the new value is different from the original value
+    changed_and_where_mask = where_mask & changed_mask
+    
     # Replace the values in the specified column where the where condition is True
     df_copy.loc[where_mask, var] = new_values
     
-    # Print the number of rows that were replaced
-    num_rows_replaced = where_mask.sum()
-    if print_result == True:
-        print(f'Replaced values in {num_rows_replaced} rows.')
+    # Count the number of rows that were replaced and are different from the original values
+    num_rows_replaced = changed_and_where_mask.sum()
+    
+    print(f'Replaced values in {num_rows_replaced} rows.')
     
     return df_copy
+
 
 
 
