@@ -257,7 +257,7 @@ def replace(df, var, where, value):
                                 # If the value is None, replace the relative reference with NaN
                                 condition = condition.replace(match, repr(np.nan))
                     elif 'len' in condition and match in df.columns: 
-                        value = len(df.columns)
+                        value = len(row[match])
                         condition = condition.replace('len(', '')
                         condition = condition.replace(')', '')
                         condition = condition.replace(match, repr(value))
