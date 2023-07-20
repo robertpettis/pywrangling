@@ -461,3 +461,37 @@ def count_occurrences_with_offset(df, column, string_to_find, offset=1, inplace=
 
     return df
 
+
+
+
+
+def proper_case(df, column):
+    """
+    Convert the given pandas DataFrame column to proper case.
+
+    Parameters:
+    df (pandas.DataFrame): DataFrame containing the column to convert
+    column (str): The column name to convert
+
+    Returns:
+    pandas.DataFrame: The DataFrame with the converted column
+
+    Usage:
+    >>> df = pd.DataFrame({"name": ["JASON'S HaT"]})
+    >>> proper_case(df, 'name')
+           name
+    0  Jason's Hat
+    """
+    df[column] = df[column].apply(lambda x: re.sub(r"(\b\w+)", lambda m: m.group(1).capitalize(), str(x)))
+    return df
+
+
+
+
+
+
+
+
+
+
+
