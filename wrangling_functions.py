@@ -181,24 +181,19 @@ def simple_replace(df, var, value, where):
 
 
 
-def replace(df, var, value, where='', flag_var=False , print_result = True):
+def replace(df, var, where, value):
     """
     Function to mimic Stata's replace command.
 
     Parameters:
-    df (DataFrame): The DataFrame to operate on.
+    df (pd.DataFrame): The DataFrame to operate on.
     var (str): The variable (column) to replace values in.
     where (str): A string that represents a condition to be evaluated on the DataFrame.
     value: The value to replace with. This can be a constant value, a column name, or a string representing a relative reference to a value in a column.
 
     Returns:
-    DataFrame: The DataFrame with values replaced.
+    df (pd.DataFrame): The DataFrame with values replaced.
     """
-    
-    # TODO: Does not currently handle or statements, isna, notna, len
-    # TODO: flag_var and print_result can probably be removed.
-    
-    
     # Reset index of the DataFrame to ensure that the row-wise operation runs correctly.
     df.reset_index(drop=True, inplace=True)
 
