@@ -181,105 +181,181 @@ def simple_replace(df, var, value, where):
 
 
 
-def replace(df, var, where, value):
+# def replace(df, var, where, value):
+#     """
+#     Function to mimic Stata's replace command.
+
+#     Parameters:
+#     df (pd.DataFrame): The DataFrame to operate on.
+#     var (str): The variable (column) to replace values in.
+#     where (str): A string that represents a condition to be evaluated on the DataFrame.
+#     value: The value to replace with. This can be a constant value, a column name, or a string representing a relative reference to a value in a column.
+
+#     Returns:
+#     df (pd.DataFrame): The DataFrame with values replaced.
+#     """
+#     df.reset_index(drop=True, inplace=True)
+
+#     def evaluate_value(row):
+#         if isinstance(value, str) and re.match(r'\w+\[n[+-]\d+\]', value):
+#             col_name, index_shift = re.match(r'(\w+)\[n([+-]\d+)\]', value).groups()
+#             index_shift = int(index_shift)
+#             if 0 <= row.name + index_shift < len(df):
+#                 return df.loc[row.name + index_shift, col_name]
+#             else:
+#                 return np.nan
+#         elif isinstance(value, str) and re.match(r'\w+', value):
+#             col_name = re.match(r'(\w+)', value).group(1)
+#             if col_name in df.columns:
+#                 return row[col_name]
+#             else:
+#                 return value.strip('"')
+#         else:
+#             return value
+    
+#     def evaluate_where(row):
+#         if where:
+#             where_evaluated = where
+#             conditions = where_evaluated.split(' & ')
+#             results = []
+#             for condition in conditions:
+#                 for match in re.findall(r'\w+\[n[+-]\d+\]', condition):
+#                     col_name, index_shift = re.match(r'(\w+)\[n([+-]\d+)\]', match).groups()
+#                     index_shift = int(index_shift)
+#                     if 0 <= row.name + index_shift < len(df):
+#                         value = df.loc[row.name + index_shift, col_name]
+#                         if value is not None:
+#                             condition = condition.replace(match, repr(value))
+#                         else:
+#                             condition = condition.replace(match, repr(np.nan))
+#                     else:
+#                         condition = condition.replace(match, repr(np.nan))
+#                 for match in re.findall(r'\w+', condition):
+#                     if "[" not in match and "]" not in match and '"' not in condition and match in df.columns:
+#                         value = row[match]
+#                         if value is not None:
+#                             if isinstance(value, int):
+#                                 condition = condition.replace(match, repr(value))
+#                             elif isinstance(value, str):
+#                                 condition = condition.replace(match, f"'{value}'")
+#                         else:
+#                             condition = condition.replace(match, repr(np.nan))
+#                 if not condition or not condition.strip():
+#                     condition = 'True'
+#                 try:
+#                     results.append(eval(condition, {'__builtins__': None}, row.to_dict()))
+#                 except TypeError:
+#                     results.append(False)
+#             return all(results)
+#         else:
+#             return True
+
+
+
+
+#     df_copy = df.copy()
+#     new_values = df_copy.apply(evaluate_value, axis=1)
+#     where_mask = df_copy.apply(evaluate_where, axis=1)
+    
+#     df_copy.loc[where_mask, var] = new_values
+#     num_rows_replaced = where_mask.sum()
+    
+#     return df_copy
+
+
+
+def replace(df, column, new_value, condition):
     """
-    Function to mimic Stata's replace command.
+    Function to replicate Stata's replace functionality.
 
     Parameters:
-    df (pd.DataFrame): The DataFrame to operate on.
-    var (str): The variable (column) to replace values in.
-    where (str): A string that represents a condition to be evaluated on the DataFrame.
-    value: The value to replace with. This can be a constant value, a column name, or a string representing a relative reference to a value in a column.
+    df: pandas DataFrame
+    column: column name to be modified
+    condition: condition to be applied on the column
+    new_value: new value (could be a column name or a constant value, with optional 'n' notation for shift)
 
     Returns:
-    df (pd.DataFrame): The DataFrame with values replaced.
+    Modified DataFrame with replaced values according to the condition
+
+    The function supports 'n' notation to indicate shift operation in pandas. For example, 'B[n-1]' is translated to 'B.shift(-1)'.
+    The 'n' notation supports both positive and negative integers.
+
+    Example:
+    Suppose we have a DataFrame 'df' with columns 'A', 'B', 'C', and 'D'.
+    We want to replace values in column 'A' where B equals 'mouse' or the previous row of B equals 'dog' and the next row of C is greater than -0.4.
+    We want to replace these values with the value in column 'B' from two rows ahead. Here's how we can do it:
+
+    # Create a sample DataFrame with various types of data
+    np.random.seed(0)
+    df = pd.DataFrame({
+        'A': np.random.randint(0, 100, 10),
+        'B': np.random.choice(['cat', 'dog', 'mouse'], 10),
+        'C': np.random.normal(0, 1, 10),
+        'D': pd.date_range('2023-01-01', periods=10)
+    })
+
+    condition = "(B == 'mouse') | (B[n-1] == 'dog') & (C[n+1] > -0.4)"
+    new_value = 'B[n+2]'
+    df_modified = replace(df, 'A', condition, new_value)
     """
-    # Reset index of the DataFrame to ensure that the row-wise operation runs correctly.
-    df.reset_index(drop=True, inplace=True)
+    # Helper function to translate 'n' notation in condition to '.shift()' notation in pandas.
+    def translate_n_to_shift(condition):
+        bracket_contents = re.findall(r'\[n([+-]?\d+)\]', condition)
+        groups = re.findall(r'(\w+\[n[+-]?\d+\])', condition)
+        shift_dict = {group: group.split('[')[0] + '.shift(' + bracket_content + ')'
+                      for group, bracket_content in zip(groups, bracket_contents)}
+        for group, shift in shift_dict.items():
+            condition = condition.replace(group, shift)
+        return condition, shift_dict
 
-    def evaluate_value(row):
-        # If value is a string that looks like a relative reference, e.g., 'col_name[n-1]'
-        if isinstance(value, str) and re.match(r'\w+\[n[+-]\d+\]', value):
-            # Extract column name and index shift from the relative reference
-            col_name, index_shift = re.match(r'(\w+)\[n([+-]\d+)\]', value).groups()
-            index_shift = int(index_shift)
-            # If the shifted index is within the DataFrame's index range, get the value from the specified column at the shifted index
-            if 0 <= row.name + index_shift < len(df):
-                return df.loc[row.name + index_shift, col_name]
-            else:
-                # If the shifted index is out of range, return NaN
-                return np.nan
-        # If value is a string that looks like a column name
-        elif isinstance(value, str) and re.match(r'\w+', value):
-            col_name = re.match(r'(\w+)', value).group(1)
-            # If the column name is in the DataFrame's columns, get the value from the specified column at the current index
-            if col_name in df.columns:
-                return row[col_name]
-            else:
-                # If the column name is not in the DataFrame's columns, treat the value as a constant value
-                return value.strip('"')
-        else:
-            # If value is not a string, treat it as a constant value
-            return value
+    # Make copies of the dataframe and apply shifts.
+    df_condition = df.copy()
+    df_new_value = df.copy()
 
-    def evaluate_where(row):
-        # If the where condition is specified
-        if where:
-            where_evaluated = where
-            # Split the where condition into individual conditions by '&'
-            conditions = where_evaluated.split(' & ')
-            results = []
-            for condition in conditions:
-                # For each condition, replace relative references with actual values from the DataFrame
-                for match in re.findall(r'\w+\[n[+-]\d+\]', condition):
-                    col_name, index_shift = re.match(r'(\w+)\[n([+-]\d+)\]', match).groups()
-                    index_shift = int(index_shift)
-                    # If the shifted index is within the DataFrame's index range, get the value from the specified column at the shifted index
-                    if 0 <= row.name + index_shift < len(df):
-                        value = df.loc[row.name + index_shift, col_name]
-                        if value is not None:
-                            condition = condition.replace(match, repr(value))
-                        else:
-                            # If the value is None, replace the relative reference with NaN
-                            condition = condition.replace(match, repr(np.nan))
-                    else:
-                        # If the shifted index is out of range, replace the relative reference with NaN
-                        condition = condition.replace(match, repr(np.nan))
-                # Replace column names in the condition with actual values from the DataFrame
-                for match in re.findall(r'\w+', condition):
-                    if "[" not in match and "]" not in match and '"' not in condition and match in df.columns:
-                        value = row[match]
-                        if value is not None:
-                            condition = condition.replace(match, repr(value))
-                # If the condition is empty or only contains spaces, replace it with 'True'
-                if not condition or not condition.strip():
-                    condition = 'True'
-                # Evaluate the condition and add the result to the results list
-                try:
-                    results.append(eval(condition, {'__builtins__': None}, row.to_dict()))
-                except TypeError:
-                    results.append(False)
-            # If all conditions are True, return True. Otherwise, return False.
-            return all(results)
-        else:
-            # If the where condition is not specified, return True for all rows.
-            return True
+    # Preprocess the condition.
+    shift_pattern = re.compile(r'(\w+).shift\(([pm]\d+)\)')
+    condition_string = translate_n_to_shift(condition)[0]
+    
+    # Extract the shifts for each column from the condition string.
+    condition_shifts = {col: int(num.replace('p', '').replace('m', '-')) for col, num in shift_pattern.findall(condition_string)}
+    shift_cols = shift_pattern.findall(condition_string)
+    
+    # Replace "column.shift(<number>)" with "column_shifted_<number>" in the condition.
+    for shift_col, shift_num in shift_cols:
+        condition_string = condition_string.replace(f'{shift_col}.shift({shift_num})', f'{shift_col}_shifted_{shift_num}')
 
-    df_copy = df.copy()
-    # Evaluate the value for each row
-    new_values = df_copy.apply(evaluate_value, axis=1)
-    # Evaluate the where condition for each row
-    where_mask = df_copy.apply(evaluate_where, axis=1)
+    # Apply shifts to df_condition and create new columns.
+    for col, shift in condition_shifts.items():
+        shifted_col_name = f'{col}_shifted_{shift_num}' 
+        df_condition[shifted_col_name] = df[col].shift(shift)
+
+    # Check if new_value is a string and contains 'n' notation. If yes, apply shift.
+    if isinstance(new_value, str) and '[n' in new_value:
+        new_value_shift = -int(re.findall(r'\[n([+-]?\d+)\]', new_value)[0])
+        new_value = re.sub(r'\[n([+-]?\d+)\]', '', new_value)
+        df_new_value[new_value] = df[new_value].shift(new_value_shift)
     
-    # Replace the values in the specified column where the where condition is True
-    df_copy.loc[where_mask, var] = new_values
+    # Create a mask for rows where condition is met.
+    mask = df_condition.eval(condition_string)
     
-    # Print the number of rows that were replaced
-    num_rows_replaced = where_mask.sum()
-    if print_result == True:
-        print(f'Replaced values in {num_rows_replaced} rows.')
+    # If new_value is a column name, get the values from the shifted dataframe.
+    if isinstance(new_value, str) and new_value in df.columns:
+        new_value = df_new_value[new_value]
     
-    return df_copy
+    # Before replacing values, save the original column for comparison later.
+    original_column = df[column].copy()
+    
+    # Replace values where condition is met.
+    df.loc[mask, column] = new_value
+    
+    # Compare the original and new columns and count the number of rows where the values differ.
+    replaced_count = (df[column] != original_column).sum()
+    
+    # Print the number of real changes made.
+    print(f'({replaced_count} real changes made)')
+    
+    return df
+
 
 
 
