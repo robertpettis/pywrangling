@@ -6,15 +6,15 @@ This repository contains a collection of Python functions designed to simplify c
 
 To install the dependencies for this project, use the following command:
 
-\```
+```
 pip install -r requirements.txt
-\```
+```
 
 Then, you can import the module in your Python script using:
 
-\```python
+```python
 import wrangling_functions as wf
-\```
+```
 
 ## Usage
 
@@ -22,7 +22,7 @@ import wrangling_functions as wf
 
 This function is used to rename columns in a DataFrame.
 
-\```python
+```python
 import pandas as pd
 import wrangling_functions as wf
 
@@ -36,13 +36,13 @@ old_names = ['A', 'B', 'C']
 new_names = ['Column1', 'Column2', 'Column3']
 df = wf.rename_columns(df, old_names, new_names)
 print(df)
-\```
+```
 
 ### `move_column`
 
 This function moves a column in a DataFrame to a specified position.
 
-\```python
+```python
 import pandas as pd
 import wrangling_functions as wf
 
@@ -54,13 +54,13 @@ df = pd.DataFrame({
 
 df = wf.move_column(df, 'A', 'first')
 print(df)
-\```
+```
 
 ### `simple_replace`
 
 This function mimics Stata's replace command. It replaces values in a specific column of a DataFrame based on a certain condition.
 
-\```python
+```python
 import pandas as pd
 import wrangling_functions as wf
 
@@ -72,13 +72,13 @@ df = pd.DataFrame({
 
 df = wf.simple_replace(df, 'B', 10, "A > 1")
 print(df)
-\```
+```
 
 ### `replace`
 
 This function is a more advanced version of the `simple_replace` function. It allows you to specify a condition for the replacement operation and supports 'n' notation to indicate shift operation.
 
-\```python
+```python
 import pandas as pd
 import wrangling_functions as wf
 
@@ -93,13 +93,13 @@ condition = "(B == 'mouse') | (B[n-1] == 'dog') & (C[n+1] > -0.4)"
 new_value = 'B[n+2]'
 df_modified = wf.replace(df, 'A', condition, new_value)
 print(df_modified)
-\```
+```
 
 ### `how_is_this_not_a_duplicate`
 
 This function identifies columns that differ between the rows for a given combination of identifiers.
 
-\```python
+```python
 import pandas as pd
 import wrangling_functions as wf
 
@@ -111,13 +111,13 @@ df = pd.DataFrame({
 
 df = wf.how_is_this_not_a_duplicate(df, ['A', 'B'])
 print(df)
-\```
+```
 
 ### `bysort_sequence`
 
 This function generates a sequence number (_n) or the maximum number (_N) within each group of the specified columns.
 
-\```python
+```python
 import pandas as pd
 import wrangling_functions as wf
 
@@ -129,7 +129,7 @@ df = pd.DataFrame({
 
 df = wf.bysort_sequence(df, ['A', 'B'], 'sequence')
 print(df)
-\```
+```
 
 ### `convert_to_units`
 
@@ -139,32 +139,32 @@ This is a helper function used to convert measurements to a different unit based
 
 This function retrieves the names of variables of specified types.
 
-\```python
+```python
 x = 10
 y = 'hello'
 z = [1, 2, 3]
 vars = wf.get_variable_names(int)
 print(vars)
-\```
+```
 
 ### `count_occurrences_with_offset`
 
 This function counts the occurrences of a given string in each row of a specified column, adds an offset, and appends the results as a new column.
 
-\```python
+```python
 import pandas as pd
 import wrangling_functions as wf
 
 df = pd.DataFrame({'instruments': ['Euphonium; Trombone', 'Trumpet', 'Percussion; Euphonium; Clarinet']})
 df_new = wf.count_occurrences_with_offset(df, 'instruments', 'Euphonium', ';', 1)
 print(df_new)
-\```
+```
 
 ### `create_top_charge`
 
 This function creates a new column 'top_charge' in the dataframe.
 
-\```python
+```python
 df = pd.DataFrame({
     'Statute': ['Battery; Assault', 'Assault; Theft', 'Theft; Fraud'],
     'TotalCharges': [2, 2, 2],
@@ -175,13 +175,13 @@ df = pd.DataFrame({
 
 df = wf.create_top_charge(df, 'Statute', 'TotalCharges', 'Convicted', 'IncarcerationDays', 'Fine')
 print(df)
-\```
+```
 
 ### `recidivism`
 
 This function calculates recidivism based on a given number of years and conviction status.
 
-\```python
+```python
 df = pd.DataFrame({
     'Date': pd.date_range('2023-01-01', periods=5),
     'PersonID': [1, 1, 2, 2, 2],
@@ -190,26 +190,26 @@ df = pd.DataFrame({
 
 df = wf.recidivism(df, 'Date', 'PersonID', 1, only_convictions=True, conviction_col='Convicted', conviction_value='Yes')
 print(df)
-\```
+```
 
 ### `send_email_or_text`
 
 This function sends an email or text message.
 
-\```python
+```python
 subject = "Hello"
 body = "This is a test message."
 sender = "sender@example.com"
 recipients = ["recipient1@example.com", "recipient2@example.com"]
 password = "password"
 wf.send_email_or_text(subject, body, sender, recipients, password)
-\```
+```
 
 ### `find_and_highlight`
 
 This function highlights a web element on a webpage. It temporarily changes the style of a web element to make it visually stand out.
 
-\```python
+```python
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 
@@ -217,4 +217,4 @@ driver = webdriver.Firefox()
 driver.get('http://www.python.org')
 elem = driver.find_element(By.NAME, 'q')  # find the search box
 wf.find_and_highlight(elem)  # highlight the search box
-\```
+```
