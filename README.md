@@ -117,7 +117,7 @@ df = pd.DataFrame({
 })
 
 condition = "(B == 'mouse') | (B[n-1] == 'dog') & (C[n+1] > -0.4)"
-new_value = 'B[n+2]'
+new_value = 'B[n-2]'
 df_modified = wf.replace(df, 'A', condition, new_value)
 print(df_modified)
 ```
@@ -128,7 +128,7 @@ print(df_modified)
      A      B    C          D
 0  1.0    cat  0.1 2023-01-01
 1  2.0    dog  0.3 2023-01-02
-2  NaN  mouse -0.2 2023-01-03
+2  cat  mouse -0.2 2023-01-03
 ```
 
 ### `how_is_this_not_a_duplicate`
@@ -283,7 +283,8 @@ print(df)
 
 ### `send_email_or_text`
 
-This function sends an email or text message.
+This function sends an email or text message. Note that, you may need to use an app password for your email account, not your usual password. 
+Clarification is here, along with a link to google's gmail app password creation in the comments: https://stackoverflow.com/questions/70261815/smtplib-smtpauthenticationerror-534-b5-7-9-application-specific-password-req
 
 ```python
 subject = "Hello"
