@@ -9,9 +9,7 @@ values in a DataFrame based on certain conditions.
 import pandas as pd  # Main library for data manipulation
 import numpy as np  # Library for numerical operations
 import re  # Regular expressions library for string manipulation
-import inspect
-
-
+import inspec
 
 def rename_columns(df, old_names, new_names=None, prefix=None, suffix=None, remove_prefix=None, remove_suffix=None):
     """
@@ -181,91 +179,8 @@ def simple_replace(df, var, value, where):
 
 
 
-# def replace(df, var, where, value):
-#     """
-#     Function to mimic Stata's replace command.
-
-#     Parameters:
-#     df (pd.DataFrame): The DataFrame to operate on.
-#     var (str): The variable (column) to replace values in.
-#     where (str): A string that represents a condition to be evaluated on the DataFrame.
-#     value: The value to replace with. This can be a constant value, a column name, or a string representing a relative reference to a value in a column.
-
-#     Returns:
-#     df (pd.DataFrame): The DataFrame with values replaced.
-#     """
-#     df.reset_index(drop=True, inplace=True)
-
-#     def evaluate_value(row):
-#         if isinstance(value, str) and re.match(r'\w+\[n[+-]\d+\]', value):
-#             col_name, index_shift = re.match(r'(\w+)\[n([+-]\d+)\]', value).groups()
-#             index_shift = int(index_shift)
-#             if 0 <= row.name + index_shift < len(df):
-#                 return df.loc[row.name + index_shift, col_name]
-#             else:
-#                 return np.nan
-#         elif isinstance(value, str) and re.match(r'\w+', value):
-#             col_name = re.match(r'(\w+)', value).group(1)
-#             if col_name in df.columns:
-#                 return row[col_name]
-#             else:
-#                 return value.strip('"')
-#         else:
-#             return value
-    
-#     def evaluate_where(row):
-#         if where:
-#             where_evaluated = where
-#             conditions = where_evaluated.split(' & ')
-#             results = []
-#             for condition in conditions:
-#                 for match in re.findall(r'\w+\[n[+-]\d+\]', condition):
-#                     col_name, index_shift = re.match(r'(\w+)\[n([+-]\d+)\]', match).groups()
-#                     index_shift = int(index_shift)
-#                     if 0 <= row.name + index_shift < len(df):
-#                         value = df.loc[row.name + index_shift, col_name]
-#                         if value is not None:
-#                             condition = condition.replace(match, repr(value))
-#                         else:
-#                             condition = condition.replace(match, repr(np.nan))
-#                     else:
-#                         condition = condition.replace(match, repr(np.nan))
-#                 for match in re.findall(r'\w+', condition):
-#                     if "[" not in match and "]" not in match and '"' not in condition and match in df.columns:
-#                         value = row[match]
-#                         if value is not None:
-#                             if isinstance(value, int):
-#                                 condition = condition.replace(match, repr(value))
-#                             elif isinstance(value, str):
-#                                 condition = condition.replace(match, f"'{value}'")
-#                         else:
-#                             condition = condition.replace(match, repr(np.nan))
-#                 if not condition or not condition.strip():
-#                     condition = 'True'
-#                 try:
-#                     results.append(eval(condition, {'__builtins__': None}, row.to_dict()))
-#                 except TypeError:
-#                     results.append(False)
-#             return all(results)
-#         else:
-#             return True
 
 
-
-
-#     df_copy = df.copy()
-#     new_values = df_copy.apply(evaluate_value, axis=1)
-#     where_mask = df_copy.apply(evaluate_where, axis=1)
-    
-#     df_copy.loc[where_mask, var] = new_values
-#     num_rows_replaced = where_mask.sum()
-    
-#     return df_copy
-
-
-
-import pandas as pd
-import re
 
 def replace(df, column, new_value, condition):
     """
