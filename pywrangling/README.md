@@ -7,7 +7,7 @@ This repository contains a collection of Python functions designed to simplify c
 To install the dependencies for this project, use the following command:
 
 ```
-pip install -r requirements.txt
+pip install git+https://github.com/robertpettis/pywrangling.git
 ```
 
 Then, you can import the module in your Python script using:
