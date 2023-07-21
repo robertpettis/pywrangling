@@ -264,6 +264,9 @@ def simple_replace(df, var, value, where):
 
 
 
+import pandas as pd
+import re
+
 def replace(df, column, new_value, condition):
     """
     Function to replicate Stata's replace functionality.
@@ -336,7 +339,19 @@ def replace(df, column, new_value, condition):
         df_new_value[new_value] = df[new_value].shift(new_value_shift)
     
     # Create a mask for rows where condition is met.
-    mask = df_condition.eval(condition_string)
+    if ".str." in condition:
+        col_name, str_method = condition.split(".str.")
+        method_name, args = re.match(r"(\w+)\((.*)\)", str_method).groups()
+        args = args.split(', ')
+        col = df[col_name]
+        method = getattr(col.str, method_name)
+        if len(args) == 1:
+            mask = method(args[0])
+        else:
+            mask = method(args[0], args[1])
+    else:
+        mask = df_condition.eval(condition_string)
+
     
     # If new_value is a column name, get the values from the shifted dataframe.
     if isinstance(new_value, str) and new_value in df.columns:
@@ -355,6 +370,7 @@ def replace(df, column, new_value, condition):
     print(f'({replaced_count} real changes made)')
     
     return df
+
 
 
 
