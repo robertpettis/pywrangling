@@ -7,7 +7,7 @@ setup(
     install_requires=[
         'pandas',
         'numpy',
-        'inspec',
+        'inspect',
         'tqdm',
     ],
 )
