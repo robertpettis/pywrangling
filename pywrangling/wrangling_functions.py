@@ -9,7 +9,9 @@ values in a DataFrame based on certain conditions.
 import pandas as pd  # Main library for data manipulation
 import numpy as np  # Library for numerical operations
 import re  # Regular expressions library for string manipulation
-import inspect
+
+
+
 
 def rename_columns(df, old_names, new_names=None, prefix=None, suffix=None, remove_prefix=None, remove_suffix=None):
     """
@@ -369,57 +371,6 @@ def convert_to_units(row, length, unit, conversion_dict):
     else:
         return row[length] * conversion_dict[row[unit]]
 
-
-###############################################################################
-def get_variable_names(*types):
-    """
-    Retrieve the names of variables of specified types that would be included in Spyder's variable explorer.
-    Exclude strings starting with '_' and specific aliases for libraries.
-
-    Parameters:
-        *types (type): Variable types to filter. Accepts multiple arguments.
-
-    Returns:
-        list: List of variable names matching the specified types.
-
-    Example:
-        # Assume the following variables exist in the current scope
-        x = 10
-        y = 'hello'
-        z = [1, 2, 3]
-
-        # Retrieve variable names of type int
-        int_vars = get_variable_names(int)
-        # Output: ['x']
-
-        # Retrieve variable names of type int and str
-        int_str_vars = get_variable_names(int, str)
-        # Output: ['x', 'y']
-
-        # Retrieve variable names of type list and dict
-        list_dict_vars = get_variable_names(list, dict)
-        # Output: ['z']
-    """
-    # Get the caller's frame
-    frame = inspect.currentframe().f_back
-
-    # Get the global variables dictionary
-    global_vars = frame.f_globals
-
-    # Aliases to exclude
-    aliases_to_exclude = ['pd', 'np', 'timedelta', 'dt']
-
-    # Filter variables by type and exclusion criteria
-    result = []
-    for var_name, var in global_vars.items():
-        if (
-            isinstance(var, types)
-            and not var_name.startswith('_')
-            and var_name not in aliases_to_exclude
-        ):
-            result.append(var_name)
-
-    return result
 
 
 
