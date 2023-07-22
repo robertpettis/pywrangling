@@ -9,7 +9,7 @@ values in a DataFrame based on certain conditions.
 import pandas as pd  # Main library for data manipulation
 import numpy as np  # Library for numerical operations
 import re  # Regular expressions library for string manipulation
-import inspec
+import inspect
 
 def rename_columns(df, old_names, new_names=None, prefix=None, suffix=None, remove_prefix=None, remove_suffix=None):
     """
