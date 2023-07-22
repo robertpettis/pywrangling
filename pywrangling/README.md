@@ -141,8 +141,8 @@ import pandas as pd
 import wrangling_functions as wf
 
 df = pd.DataFrame({
-    'A': ['cat', 'dog', 'mouse'],
-    'B': [1, 2, 3],
+    'A': ['cat', 'cat', 'mouse'],
+    'B': [2, 2, 3],
     'C': [4, 5, 6]
 })
 
@@ -155,31 +155,13 @@ print(df)
 ```
        A  B  C  sequence
 0    cat  1  4         1
-1    dog  2  5         1
+1    dog  2  5         2
 2  mouse  3  6         1
 ```
 
 ### `convert_to_units`
 
 This is a helper function used to convert measurements to a different unit based on a conversion dictionary.
-
-### `get_variable_names`
-
-This function retrieves the names of variables of specified types.
-
-```python
-x = 10
-y = 'hello'
-z = [1, 2, 3]
-vars = wf.get_variable_names(int)
-print(vars)
-```
-
-**Output:**
-
-```
-['x']
-```
 
 ### `count_occurrences_with_offset`
 
@@ -205,7 +187,7 @@ print(df_new)
 
 ### `create_top_charge`
 
-This function creates a new column 'top_charge' in the dataframe.
+This function creates a new column 'top_charge' in the dataframe. Note that the charges are determined based on their sentences when defendants have a single charge. 
 
 ```python
 df = pd.DataFrame({
