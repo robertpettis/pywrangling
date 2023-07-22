@@ -161,29 +161,6 @@ def move_column(df, col_to_move, pos='last', ref_col=None):
 
 
 
-
-
-def simple_replace(df, var, value, where):
-    """
-    Function to mimic Stata's replace command.
-
-    Parameters:
-    df (DataFrame): The DataFrame to operate on.
-    var (str): The variable (column) to replace values in.
-    condition_str (str): A string that represents a condition to be evaluated on the DataFrame.
-    value: The value to replace with.
-
-    Returns:
-    DataFrame: The DataFrame with values replaced.
-    """
-    df.loc[df.query(where).index, var] = value
-    return df
-
-
-
-
-
-
 def replace(df, column, new_value, condition):
     """
     Function to replicate Stata's replace functionality.
