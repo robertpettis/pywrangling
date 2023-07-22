@@ -74,36 +74,10 @@ print(df)
 2  3  6  9
 ```
 
-### `simple_replace`
-
-This function mimics Stata's replace command. It replaces values in a specific column of a DataFrame based on a certain condition.
-
-```python
-import pandas as pd
-import wrangling_functions as wf
-
-df = pd.DataFrame({
-    'A': [1, 2, 3],
-    'B': [4, 5, 6],
-    'C': [7, 8, 9]
-})
-
-df = wf.simple_replace(df, 'B', 10, "A > 1")
-print(df)
-```
-
-**Output:**
-
-```
-   A   B  C
-0  1   4  7
-1  2  10  8
-2  3  10  9
-```
 
 ### `replace`
 
-This function is a more advanced version of the `simple_replace` function. It allows you to specify a condition for the replacement operation and supports 'n' notation to indicate shift operation.
+This function intends to mimic Stata's replace function. It allows you to specify a condition for the replacement operation and supports 'n' notation to indicate shift operation.
 
 ```python
 import pandas as pd
@@ -152,10 +126,10 @@ print(df)
 **Output:**
 
 ```
-   A  B  C
-0  1  4  7
-1  1  4  8
-2  3  6  9
+   A  B  C problematic_cols
+0  1  4  7                C
+1  1  4  8                C
+2  3  6  9              NaN
 ```
 
 ### `bysort_sequence`
