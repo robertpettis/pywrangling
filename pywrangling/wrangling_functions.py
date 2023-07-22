@@ -9,7 +9,7 @@ values in a DataFrame based on certain conditions.
 import pandas as pd  # Main library for data manipulation
 import numpy as np  # Library for numerical operations
 import re  # Regular expressions library for string manipulation
-import inspec
+import inspect
 
 def rename_columns(df, old_names, new_names=None, prefix=None, suffix=None, remove_prefix=None, remove_suffix=None):
     """
@@ -401,7 +401,7 @@ def get_variable_names(*types):
         # Output: ['z']
     """
     # Get the caller's frame
-    frame = inspec.currentframe().f_back
+    frame = inspect.currentframe().f_back
 
     # Get the global variables dictionary
     global_vars = frame.f_globals
