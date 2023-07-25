@@ -76,20 +76,15 @@ def recidivism(df, date_col, person_id_col, years, only_convictions=False, convi
     -------
     df : pandas.DataFrame
         The original dataframe with an additional column `recidivism` indicating recidivism status.
-
-    Usage
-    -----
-    df = recidivism(df, 'date', 'person_id', 5, only_convictions=True, conviction_col='convicted', conviction_value='Yes')
-    
-    
-    NOTE: The exact semantics of what the function does is that it checks for prior offenses in the past n years. 
-    If it is set to have only_convictions=True, then it filters the prior rows such that they onlk
     """
+    import numpy as np
+    from tqdm import tqdm
+
     # Sort by person_id and date
     df = df.sort_values([person_id_col, date_col])
 
-    # Initialize recidivism column to 0
-    df['recidivism'] = 0
+    # Initialize recidivism column to NaN
+    df['recidivism'] = np.nan
 
     # Loop over rows with a progress bar from tqdm
     for i, row in tqdm(df.iterrows(), total=df.shape[0]):
@@ -106,4 +101,13 @@ def recidivism(df, date_col, person_id_col, years, only_convictions=False, convi
         if df[mask].shape[0] > 0:
             df.at[i, 'recidivism'] = 1
 
+    # Determine the earliest and latest dates we can accurately calculate recidivism for
+    earliest_date = df[date_col].min() + pd.DateOffset(years=years)
+    latest_date = df[date_col].max() - pd.DateOffset(years=years)
+
+    # Set recidivism to NaN for rows outside the date range we can accurately calculate recidivism for
+    df.loc[(df[date_col] < earliest_date) | (df[date_col] > latest_date), 'recidivism'] = np.nan
+
     return df
+
+
