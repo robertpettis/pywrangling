@@ -20,7 +20,7 @@ import wrangling_functions as wf
 
 ### `rename_columns`
 
-This function is used to rename columns in a DataFrame.
+This function serves the purpose of renaming columns within a DataFrame. While the functionality is similar to the existing method provided by pandas, some users may find this function preferable based on their personal coding style.
 
 ```python
 import pandas as pd
