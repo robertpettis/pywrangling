@@ -81,6 +81,12 @@ def rename_columns(df, old_names, new_names=None, prefix=None, suffix=None, remo
     if not old_names:
         raise ValueError("old_names must be provided")
 
+    # If old_names or new_names are not list, convert them into list
+    if not isinstance(old_names, list):
+        old_names = [old_names]
+    if new_names and not isinstance(new_names, list):
+        new_names = [new_names]
+
     # If new_names is not provided, use old_names as new_names
     if not new_names:
         new_names = old_names
