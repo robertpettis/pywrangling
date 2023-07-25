@@ -10,6 +10,13 @@ To install the dependencies for this project, use the following command:
 pip install git+https://github.com/robertpettis/pywrangling.git
 ```
 
+or to upgrade:
+
+```
+pip install --upgrade git+https://github.com/robertpettis/pywrangling.git
+```
+
+
 Then, you can import the module in your Python script using:
 
 ```python
