@@ -6,13 +6,13 @@ This repository contains a collection of Python functions designed to simplify c
 
 To install the dependencies for this project, use the following command:
 
-```
+```shell
 pip install git+https://github.com/robertpettis/pywrangling.git
 ```
 
 or to upgrade:
 
-```
+```bash
 pip install --upgrade git+https://github.com/robertpettis/pywrangling.git
 ```
 
