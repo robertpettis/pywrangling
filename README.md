@@ -47,7 +47,7 @@ This function serves the purpose of renaming columns within a DataFrame. While t
 
 ```python
 import pandas as pd
-import wrangling_functions as wf
+import pywrangling.wrangling_functions as wf
 
 df = pd.DataFrame({
     'A': [1, 2, 3],
@@ -76,7 +76,7 @@ This function moves a column in a DataFrame to a specified position.
 
 ```python
 import pandas as pd
-import wrangling_functions as wf
+import pywrangling.wrangling_functions as wf
 
 df = pd.DataFrame({
     'A': [1, 2, 3],
@@ -104,7 +104,7 @@ This function intends to mimic Stata's replace function. It allows you to specif
 
 ```python
 import pandas as pd
-import wrangling_functions as wf
+import pywrangling.wrangling_functions as wf
 
 df = pd.DataFrame({
     'A': [1, 2, 3],
@@ -134,7 +134,7 @@ This function identifies columns that differ between the rows for a given combin
 
 ```python
 import pandas as pd
-import wrangling_functions as wf
+import pywrangling.wrangling_functions as wf
 
 df = pd.DataFrame({
     'A': [1, 1, 3],
@@ -161,7 +161,7 @@ This function generates a sequence number (_n) or the maximum number (_N) within
 
 ```python
 import pandas as pd
-import wrangling_functions as wf
+import pywrangling.wrangling_functions as wf
 
 df = pd.DataFrame({
     'A': ['cat', 'cat', 'mouse'],
@@ -192,7 +192,7 @@ This function counts the occurrences of a given string in each row of a specifie
 
 ```python
 import pandas as pd
-import wrangling_functions as wf
+import pywrangling.wrangling_functions as wf
 
 df = pd.DataFrame({'instruments': ['Euphonium; Trombone', 'Trumpet', 'Percussion; Euphonium; Clarinet']})
 df_new = wf.count_occurrences_with_offset(df, 'instruments', 'Euphonium', ';', 1)
@@ -214,24 +214,29 @@ This function creates a new column 'top_charge' in the dataframe. Note that the 
 
 ```python
 df = pd.DataFrame({
-    'Statute': ['Battery; Assault', 'Assault; Theft', 'Theft; Fraud'],
-    'TotalCharges': [2, 2, 2],
-    'Convicted': [1, 1, 0],
-    'IncarcerationDays': [30, 10, 0],
-    'Fine': [500, 200, 0]
+    'statute_col': ['Battery', 'Assault', 'Battery;Assault', 'Assault;Battery', 'Theft', 'Battery;Theft', 'Theft;Assault', 'Assault;Theft'],
+    'total_charges_col': [1, 1, 2, 2, 1, 2, 2, 2],
+    'convicted_col': [1, 1, 1, 1, 0, 1, 0, 1],
+    'incarceration_days_col': [10, 20, 15, 25, 5, 30, 10, 40],
+    'total_fine_col': [100, 200, 150, 250, 50, 300, 100, 400]
 })
 
-df = wf.create_top_charge(df, 'Statute', 'TotalCharges', 'Convicted', 'IncarcerationDays', 'Fine')
+df = create_top_charge(df, 'statute_col', 'total_charges_col', 'convicted_col', 'incarceration_days_col', 'total_fine_col')
 print(df)
 ```
 
 **Output:**
 
 ```
-            Statute  TotalCharges  Convicted  IncarcerationDays  Fine top_charge
-0  Battery; Assault             2          1                 30   500    Battery
-1   Assault; Theft             2          1                 10   200    Assault
-2      Theft; Fraud             2          0                  0     0      Theft
+statute_col	total_charges_col	convicted_col	incarceration_days_col	total_fine_col	top_charge
+0	Battery	1	1	10	100	Battery
+1	Assault	1	1	20	200	Assault
+2	Battery;Assault	2	1	15	150	Assault
+3	Assault;Battery	2	1	25	250	Assault
+4	Theft	1	0	5	50	Theft
+5	Battery;Theft	2	1	30	300	Battery
+6	Theft;Assault	2	0	10	100	Assault
+7	Assault;Theft	2	1	40	400	Assault
 ```
 
 ### `recidivism`
