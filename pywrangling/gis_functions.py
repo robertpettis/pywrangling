@@ -1,8 +1,3 @@
-# -*- coding: utf-8 -*-
-"""
-These functions will provide GIS support.
-"""
-
 import pandas as pd
 from geopy.geocoders import Nominatim
 import googlemaps
@@ -44,27 +39,22 @@ def geocode_with_progress(addresses, api_key, try_nominatim_first=True, batch_si
         batch_start = i * batch_size
         batch_end = (i + 1) * batch_size
         batch_addresses = addresses[batch_start:batch_end]
-        try:
-            batch_coordinates = [geocode_func(address) for address in batch_addresses]
-            coordinates += batch_coordinates
-        except Exception as e:
-            print(f"Error: {e}")
-            # Try the other geocoding function if we get a 502 error and try_nominatim_first is true
-            if "502" in str(e) and try_nominatim_first:
+        batch_coordinates = []
+        for address in batch_addresses:
+            coord = geocode_func(address)
+            if coord is None:
+                # Switch geocoding function and try again
                 if geocode_func == geocode:
                     geocode_func = googlecode
                 else:
                     geocode_func = geocode
-                # try the other geocode function for this iteration
-                try:
-                    batch_coordinates = [geocode_func(address) for address in batch_addresses]
-                    coordinates += batch_coordinates
-                except Exception as e:
-                    print(f"Error: {e}")
-                    # Switch back to original geocode function
-                    if geocode_func == geocode:
-                        geocode_func = googlecode
-                    else:
-                        geocode_func = geocode
-                    continue
+                coord = geocode_func(address)
+            batch_coordinates.append(coord)
+            # Reset to original geocoding function for next address
+            if geocode_func == geocode:
+                geocode_func = googlecode
+            else:
+                geocode_func = geocode
+        coordinates += batch_coordinates
+
     return coordinates
