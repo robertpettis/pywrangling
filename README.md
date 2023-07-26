@@ -26,17 +26,17 @@ import pywrangling.wrangling_functions as wf
 
 ## utility_functions
 ```python
-import pywrangling.utility_functions as wf
+import pywrangling.utility_functions as uf
 ```
 
 ## scraping_functions
 ```python
-import pywrangling.scraping_functions as wf
+import pywrangling.scraping_functions as sf
 ```
 
 ## criminal_justice_functions
 ```python
-import pywrangling.criminal_justice_functions as wf
+import pywrangling.criminal_justice_functions as cf
 ```
 
 ## Usage
