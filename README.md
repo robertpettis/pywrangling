@@ -19,8 +19,24 @@ pip install --upgrade git+https://github.com/robertpettis/pywrangling.git
 
 Then, you can import the module in your Python script using:
 
+## wrangling_functions
 ```python
-import wrangling_functions as wf
+import pywrangling.wrangling_functions as wf
+```
+
+## utility_functions
+```python
+import pywrangling.utility_functions as wf
+```
+
+## scraping_functions
+```python
+import pywrangling.scraping_functions as wf
+```
+
+## criminal_justice_functions
+```python
+import pywrangling.criminal_justice_functions as wf
 ```
 
 ## Usage
