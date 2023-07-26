@@ -1,5 +1,5 @@
 import pandas as pd
-from geopy.geocoders import Nominatim
+from geopy.geocoders import Nominatim, GeocoderServiceError
 import googlemaps
 import math
 from tqdm import tqdm
@@ -41,20 +41,34 @@ def geocode_with_progress(addresses, api_key, try_nominatim_first=True, batch_si
         batch_addresses = addresses[batch_start:batch_end]
         batch_coordinates = []
         for address in batch_addresses:
-            coord = geocode_func(address)
-            if coord is None:
-                # Switch geocoding function and try again
+            try:
+                coord = geocode_func(address)
+                if coord is None:
+                    # Switch geocoding function and try again
+                    if geocode_func == geocode:
+                        geocode_func = googlecode
+                    else:
+                        geocode_func = geocode
+                    coord = geocode_func(address)
+                batch_coordinates.append(coord)
+                # Reset to original geocoding function for next address
                 if geocode_func == geocode:
                     geocode_func = googlecode
                 else:
                     geocode_func = geocode
-                coord = geocode_func(address)
-            batch_coordinates.append(coord)
-            # Reset to original geocoding function for next address
-            if geocode_func == geocode:
-                geocode_func = googlecode
-            else:
-                geocode_func = geocode
+            except GeocoderServiceError:
+                print("GeocoderServiceError occurred, switching geocoding service")
+                if geocode_func == geocode:
+                    geocode_func = googlecode
+                else:
+                    geocode_func = geocode
+                try:
+                    coord = geocode_func(address)
+                    batch_coordinates.append(coord)
+                except GeocoderServiceError as e:
+                    print("Geocoding failed for address: " + address)
+                    print(str(e))
+                    continue
         coordinates += batch_coordinates
 
     return coordinates
