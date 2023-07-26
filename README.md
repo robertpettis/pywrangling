@@ -211,7 +211,7 @@ df = pd.DataFrame({
     'total_fine_col': [100, 200, 150, 250, 50, 300, 100, 400]
 })
 
-df = create_top_charge(df, 'statute_col', 'total_charges_col', 'convicted_col', 'incarceration_days_col', 'total_fine_col')
+df = cf.create_top_charge(df, 'statute_col', 'total_charges_col', 'convicted_col', 'incarceration_days_col', 'total_fine_col')
 print(df)
 ```
 
@@ -240,7 +240,7 @@ df = pd.DataFrame({
     'Convicted': ['Yes', 'No', 'Yes', 'Yes', 'No']
 })
 
-df = wf.recidivism(df, 'Date', 'PersonID', 1, only_convictions=True, conviction_col='Convicted', conviction_value='Yes')
+df = cf.recidivism(df, 'Date', 'PersonID', 1, only_convictions=True, conviction_col='Convicted', conviction_value='Yes')
 print(df)
 ```
 
