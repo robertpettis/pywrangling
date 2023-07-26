@@ -19,27 +19,12 @@ pip install --upgrade git+https://github.com/robertpettis/pywrangling.git
 
 Then, you can import the module in your Python script using:
 
+## Usage
+
 ## wrangling_functions
 ```python
 import pywrangling.wrangling_functions as wf
 ```
-
-## utility_functions
-```python
-import pywrangling.utility_functions as uf
-```
-
-## scraping_functions
-```python
-import pywrangling.scraping_functions as sf
-```
-
-## criminal_justice_functions
-```python
-import pywrangling.criminal_justice_functions as cf
-```
-
-## Usage
 
 ### `rename_columns`
 
@@ -208,6 +193,11 @@ print(df_new)
 2  Percussion; Euphonium; Clarinet     2
 ```
 
+## criminal_justice_functions
+```python
+import pywrangling.criminal_justice_functions as cf
+```
+
 ### `create_top_charge`
 
 This function creates a new column 'top_charge' in the dataframe. Note that the charges are determined based on their sentences when defendants have a single charge. 
@@ -265,6 +255,11 @@ print(df)
 4 2023-01-05         2        No           1
 ```
 
+## utility_functions
+```python
+import pywrangling.utility_functions as uf
+```
+
 ### `send_email_or_text`
 
 This function sends an email or text message. Note that, you may need to use an app password for your email account, not your usual password. 
@@ -283,6 +278,11 @@ wf.send_email_or_text(subject, body, sender, recipients, password)
 
 ```
 Message sent!
+```
+
+## scrapinge_functions
+```python
+import pywrangling.scraping_functions as cf
 ```
 
 ### `find_and_highlight`
