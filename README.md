@@ -280,7 +280,7 @@ wf.send_email_or_text(subject, body, sender, recipients, password)
 Message sent!
 ```
 
-## scrapinge_functions
+## scraping_functions
 ```python
 import pywrangling.scraping_functions as cf
 ```
