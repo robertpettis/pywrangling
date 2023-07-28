@@ -1,8 +1,10 @@
+
 import pandas as pd
-from geopy.geocoders import Nominatim, GeocoderServiceError
+from geopy.exc import GeocoderTimedOut, GeocoderServiceError
 import googlemaps
 import math
 from tqdm import tqdm
+from geopy.geocoders import Nominatim
 
 #Initialize Nominatim geolocator
 geolocator = Nominatim(user_agent='my_custom_user_agent')
