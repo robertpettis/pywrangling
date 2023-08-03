@@ -4,7 +4,15 @@ This repository contains a collection of Python functions designed to simplify c
 
 ## Installation
 
-To install the dependencies for this project, use the following command:
+
+This project has dependencies that are most easily installed using `conda`:
+
+```bash
+conda install -c conda-forge cartopy
+```
+
+
+To install the remaining dependencies for this project as well as the package itself, use the following command:
 
 ```shell
 pip install git+https://github.com/robertpettis/pywrangling.git
