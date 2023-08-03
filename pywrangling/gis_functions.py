@@ -6,12 +6,14 @@ import math
 from tqdm import tqdm
 from geopy.geocoders import Nominatim
 import cartopy.io.img_tiles as cimgt
+import cartopy.feature as cfeature
 import matplotlib.colors as mcolors
 import matplotlib.pyplot as plt
 import cartopy.crs as ccrs
+from typing import Tuple, List
 
 
-# GEOCODING ###################################################################
+# %% GEOCODING ################################################################
 # Initialize Nominatim geolocator
 geolocator = Nominatim(user_agent='my_custom_user_agent')
 
@@ -148,36 +150,99 @@ def create_colormap(percentiles):
 
 # %%% A function to create the map
 
-def create_map(data: gpd.GeoDataFrame, colormap: mcolors.Colormap, extent: Tuple[float, float, float, float]):
-    """
-    Create a map based on the provided GeoDataFrame and plot the data.
 
-    Parameters:
-    data (gpd.GeoDataFrame): The GeoDataFrame containing the data.
-    colormap (mcolors.Colormap): The colormap to use for the map.
-    extent (tuple): The extent of the map in the form of (xmin, ymin, xmax, ymax).
+# def prepare_data(points: gpd.GeoDataFrame, polygons: gpd.GeoDataFrame, extent: Tuple[float, float, float, float], quantiles: List[float]) -> gpd.GeoDataFrame:
+#     """
+#     Prepare the data by performing a spatial join, counting points in polygons, filtering polygons within an extent, and calculating percentiles.
 
-    Returns:
-    Matplotlib figure and axes.
-    """
+#     Parameters:
+#     points (gpd.GeoDataFrame): GeoDataFrame containing points and additional information.
+#     polygons (gpd.GeoDataFrame): GeoDataFrame containing polygons.
+#     extent (tuple): The extent of the map in the form of (xmin, ymin, xmax, ymax).
+#     quantiles (list): The quantiles to calculate.
 
-    # Create the map figure
-    fig = plt.figure(figsize=(8, 8))
-    ax = plt.axes(projection=ccrs.PlateCarree())
-    ax.set_extent(extent, crs=ccrs.PlateCarree())
-    
-    # Define the basemap
-    basemap = CustomTiles('https://stamen-tiles-{s}.a.ssl.fastly.net/toner-background/{z}/{x}/{y}.png', subdomains='abcd')
-    ax.add_image(basemap, 14, interpolation='spline36', zorder=0)
-    
-    # Plot the data
-    data.plot(column='count', cmap=colormap, linewidth=0.8, ax=ax, edgecolor='0.8')
+#     Returns:
+#     gpd.GeoDataFrame: The prepared data.
+#     """
 
-    return fig, ax
+#     # Assign an id to each polygon
+#     polygons['id'] = polygons.index
+
+#     # Perform spatial join
+#     spatial_join = gpd.sjoin(polygons, points, op='contains')
+
+#     # Count points in each polygon
+#     polygons_with_counts = spatial_join.groupby("id").size().reset_index(name='count')
+#     polygons = polygons.merge(polygons_with_counts, on='id')
+
+#     # Filter polygons within the map extent
+#     polygons_within_extent = polygons.cx[extent[0]:extent[2], extent[1]:extent[3]]
+
+#     # Calculate percentiles for the counts within the map extent
+#     percentiles = [polygons_within_extent['count'].quantile(q) for q in quantiles]
+
+#     # Add percentiles to the data
+#     polygons_within_extent['percentile'] = pd.cut(polygons_within_extent['count'], bins=[0] + percentiles, labels=False, include_lowest=True)
+
+#     # Reproject polygons to equal area projection
+#     polygons_equal_area = polygons_within_extent.to_crs("EPSG:3310")
+
+#     # Calculate the area of each polygon in square meters
+#     polygons_equal_area["area_sqm"] = polygons_equal_area["geometry"].area
+
+#     # Convert the area from square meters to square miles
+#     polygons_equal_area["area_sqmi"] = polygons_equal_area["area_sqm"] / 2589988.47
+
+#     # Merge the area column back to the original polygons_within_extent GeoDataFrame
+#     polygons_within_extent["area_sqmi"] = polygons_equal_area["area_sqmi"]
+
+#     # Print the average area in square miles
+#     avg_area_sqmi = polygons_within_extent["area_sqmi"].mean()
+#     print(f"Average area of each polygon is {avg_area_sqmi:.2f} square miles.")
+
+#     return polygons_within_extent
 
 
 
+# def create_map(basemap: cimgt.GoogleWTS, polygons: gpd.GeoDataFrame, shapefiles: List[gpd.GeoDataFrame], aspect_ratio: float = ((1 + math.sqrt(5)) / 2), width: float = 10):
+#     """
+#     Create a map with the specified base map, polygons, and other shapefiles.
 
+#     Parameters:
+#     basemap (cimgt.GoogleWTS): The base map to use.
+#     polygons (gpd.GeoDataFrame): GeoDataFrame containing polygons to be plotted.
+#     shapefiles (list): List of GeoDataFrames of other shapefiles to be plotted.
+#     aspect_ratio (float, optional): The desired aspect ratio. Default is the golden ratio.
+#     width (float, optional): The width of the figure. Default is 10.
+
+#     Returns:
+#     tuple: A tuple containing the figure and axes.
+#     """
+
+#     # Set the height based on the width and aspect ratio
+#     height = width / aspect_ratio
+
+#     # Create a figure and axes with the desired aspect ratio
+#     fig = plt.figure(figsize=(width, height), dpi=300)
+#     ax = fig.add_subplot(1, 1, 1, projection=basemap.crs)
+
+#     # Add the base map
+#     ax.add_image(basemap, 10)
+
+#     # Add features
+#     ax.add_feature(cfeature.COASTLINE)
+#     ax.add_feature(cfeature.BORDERS, linestyle=':')
+#     ax.add_feature(cfeature.STATES, linestyle=':')
+
+#     # Plot the polygons
+#     polygons.plot(ax=ax, facecolor='none', edgecolor='black', linewidth=2.5, zorder=4)
+
+#     # Plot the other shapefiles
+#     for shapefile in shapefiles:
+#         shapefile.plot(ax=ax, facecolor='none', edgecolor='black', linewidth=2.5, zorder=4)
+
+#     # Return the figure and axes
+#     return fig, ax
 
 
 
