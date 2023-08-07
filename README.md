@@ -132,7 +132,9 @@ import pywrangling.wrangling_functions as wf
 df = pd.DataFrame({
     'A': [1, 1, 3],
     'B': [4, 4, 6],
-    'C': [7, 8, 9]
+    'C': [7, 8, 9],
+    'D': [1, 2, 3],    
+    
 })
 
 df = wf.how_is_this_not_a_duplicate(df, ['A', 'B'])
@@ -142,10 +144,10 @@ print(df)
 **Output:**
 
 ```
-   A  B  C problematic_cols
-0  1  4  7                C
-1  1  4  8                C
-2  3  6  9              NaN
+   A  B  C  D problematic_cols
+0  1  4  7  1             C, D
+1  1  4  8  2             C, D
+2  3  6  9  3              NaN
 ```
 
 ### `bysort_sequence`
