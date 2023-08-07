@@ -170,8 +170,8 @@ print(df)
 
 ```
        A  B  C  sequence
-0    cat  1  4         1
-1    dog  2  5         2
+0    cat  2  4         1
+1    cat  2  5         2
 2  mouse  3  6         1
 ```
 
