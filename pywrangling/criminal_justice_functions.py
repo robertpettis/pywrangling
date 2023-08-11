@@ -4,6 +4,15 @@ This library is for packages for criminal justice analysis.
 """
 from tqdm import tqdm
 import pandas as pd
+import openai
+import time
+
+
+
+
+
+
+
 
 ###############################################################################
 def create_top_charge(df, statute_col, total_charges_col, convicted_col, incarceration_days_col, total_fine_col):
@@ -109,5 +118,102 @@ def recidivism(df, date_col, person_id_col, years, only_convictions=False, convi
     df.loc[(df[date_col] < earliest_date) | (df[date_col] > latest_date), 'recidivism'] = np.nan
 
     return df
+
+
+
+
+
+
+
+# Use chat GPT to populate a column based on another column and a prompt. #####
+def count_semicolons(s):
+    return s.count(";")
+
+def populate_responses(api_key, initial_prompt, model_name, dataframe, input_col, output_col, 
+                       batch_size=10, max_tokens=500, max_retries=5, number_of_responses=2):
+
+    openai.api_key = api_key  # Set the API key
+
+    unique_values = dataframe[input_col].unique()
+    num_values = len(unique_values)
+
+    for i in tqdm(range(0, num_values, batch_size), total=num_values // batch_size, desc="Processing entries"):
+        batch = unique_values[i:i + batch_size]
+        prompt = " ; ".join(batch)
+
+        retries = 0
+        while retries < max_retries:
+            completion = openai.ChatCompletion.create(
+                model=model_name,
+                messages=[
+                    {'role': 'system', 'content': 'You are a helpful assistant with vast legal knowledge.'},
+                    {'role': 'user', 'content': initial_prompt},
+                    {'role': 'assistant', 'content': 'Yes'},
+                    {'role': 'user', 'content': f'{prompt}'}
+                ],
+                max_tokens=max_tokens,
+                n=number_of_responses,
+                stop=None,
+                temperature=0.5,
+            )
+
+            valid_response = None
+            for choice in completion.choices:
+                response = choice.message.content
+                prompt_count = count_semicolons(prompt)
+                response_count = count_semicolons(response)
+                if prompt_count == response_count:
+                    valid_response = response
+                    retries = max_retries 
+                    break  
+            else:
+                retries += 1
+                time.sleep(21)
+                continue
+
+        # Populate the output column in the DataFrame with the response
+        dataframe.loc[dataframe[input_col].isin(batch), output_col] = valid_response
+        time.sleep(21)
+
+    return dataframe
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
