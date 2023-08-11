@@ -126,11 +126,10 @@ def recidivism(df, date_col, person_id_col, years, only_convictions=False, convi
 
 
 # Use chat GPT to populate a column based on another column and a prompt. #####
-def count_semicolons(s):
-    return s.count(";")
 
-def populate_responses(api_key, initial_prompt, model_name, dataframe, input_col, 
-                       batch_size=10, max_tokens=500, max_retries=5, number_of_responses=2):
+
+
+def populate_responses(api_key, initial_prompt, model_name, dataframe, input_col, max_tokens=500, max_retries=5, number_of_responses=2):
 
     openai.api_key = api_key  # Set the API key
 
@@ -139,53 +138,39 @@ def populate_responses(api_key, initial_prompt, model_name, dataframe, input_col
 
     output_df = pd.DataFrame(columns=[input_col, 'Response'])  # Empty DataFrame to store results
 
-    for i in tqdm(range(0, num_values, batch_size), total=num_values // batch_size, desc="Processing entries"):
-        batch = unique_values[i:i + batch_size]
-        prompt = " ; ".join(batch)
-
+    for value in tqdm(unique_values, total=num_values, desc="Processing entries"):
         retries = 0
         while retries < max_retries:
-            completion = openai.ChatCompletion.create(
-                model=model_name,
-                messages=[
-                    {'role': 'system', 'content': 'You are a helpful assistant with vast legal knowledge.'},
-                    {'role': 'user', 'content': initial_prompt},
-                    {'role': 'assistant', 'content': 'Yes'},
-                    {'role': 'user', 'content': f'{prompt}'}
-                ],
-                max_tokens=max_tokens,
-                n=number_of_responses,
-                stop=None,
-                temperature=0.5,
-            )
+            try:
+                completion = openai.ChatCompletion.create(
+                    model=model_name,
+                    messages=[
+                        {'role': 'system', 'content': 'You are a helpful assistant with vast legal knowledge.'},
+                        {'role': 'user', 'content': initial_prompt},
+                        {'role': 'assistant', 'content': 'Yes'},
+                        {'role': 'user', 'content': f'{value}'}
+                    ],
+                    max_tokens=max_tokens,
+                    n=number_of_responses,
+                    stop=None,
+                    temperature=0.5,
+                )
 
-            valid_response = None
-            for choice in completion.choices:
-                response = choice.message.content
-                prompt_count = count_semicolons(prompt)
-                response_count = count_semicolons(response)
-                if prompt_count == response_count:
-                    valid_response = response
-                    retries = max_retries 
-                    break  
+                valid_response = completion.choices[0].message.content if completion.choices else None
+                if valid_response:
+                    temp_df = pd.DataFrame({input_col: [value], 'Response': [valid_response]})
+                    output_df = pd.concat([output_df, temp_df], ignore_index=True)
+                    break  # Exit the retry loop if we get a valid response
+            except openai.error.OpenAIError as e:
+                if "ServiceUnavailableError" in str(e):
+                    print("Server unavailable. Retrying after a longer pause...")
+                    time.sleep(60)  # Sleep for 60 seconds before retrying
+                    retries += 1
             else:
                 retries += 1
                 time.sleep(21)
-                continue
-
-        # Expand the prompts and responses
-        prompts = prompt.split(' ; ')
-        responses = valid_response.split(' ; ')
-        temp_df = pd.DataFrame({input_col: prompts, 'Response': responses})
-        output_df = pd.concat([output_df, temp_df], ignore_index=True)
-        time.sleep(21)
-
-    # Drop duplicates to ensure unique prompt-response pairs
-    output_df = output_df.drop_duplicates(subset=[input_col, 'Response'])
 
     return output_df
-
-
 
 
 
