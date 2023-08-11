@@ -129,13 +129,15 @@ def recidivism(df, date_col, person_id_col, years, only_convictions=False, convi
 def count_semicolons(s):
     return s.count(";")
 
-def populate_responses(api_key, initial_prompt,  model_name, dataframe, input_col, output_col,
-                       batch_size=10, max_tokens=500, max_retries=5, number_of_responses=2, system_prompt =  'You are a helpful assistant with vast legal knowledge.'):
+def populate_responses(api_key, initial_prompt, model_name, dataframe, input_col, 
+                       batch_size=10, max_tokens=500, max_retries=5, number_of_responses=2):
 
     openai.api_key = api_key  # Set the API key
 
     unique_values = dataframe[input_col].unique()
     num_values = len(unique_values)
+
+    output_df = pd.DataFrame(columns=[input_col, 'Response'])  # Empty DataFrame to store results
 
     for i in tqdm(range(0, num_values, batch_size), total=num_values // batch_size, desc="Processing entries"):
         batch = unique_values[i:i + batch_size]
@@ -146,7 +148,7 @@ def populate_responses(api_key, initial_prompt,  model_name, dataframe, input_co
             completion = openai.ChatCompletion.create(
                 model=model_name,
                 messages=[
-                    {'role': 'system', 'content': system_prompt},
+                    {'role': 'system', 'content': 'You are a helpful assistant with vast legal knowledge.'},
                     {'role': 'user', 'content': initial_prompt},
                     {'role': 'assistant', 'content': 'Yes'},
                     {'role': 'user', 'content': f'{prompt}'}
@@ -171,11 +173,17 @@ def populate_responses(api_key, initial_prompt,  model_name, dataframe, input_co
                 time.sleep(21)
                 continue
 
-        # Populate the output column in the DataFrame with the response
-        dataframe.loc[dataframe[input_col].isin(batch), output_col] = valid_response
+        # Expand the prompts and responses
+        prompts = prompt.split(' ; ')
+        responses = valid_response.split(' ; ')
+        temp_df = pd.DataFrame({input_col: prompts, 'Response': responses})
+        output_df = pd.concat([output_df, temp_df], ignore_index=True)
         time.sleep(21)
 
-    return dataframe
+    # Drop duplicates to ensure unique prompt-response pairs
+    output_df = output_df.drop_duplicates(subset=[input_col, 'Response'])
+
+    return output_df
 
 
 
