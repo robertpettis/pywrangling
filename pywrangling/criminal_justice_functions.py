@@ -129,8 +129,8 @@ def recidivism(df, date_col, person_id_col, years, only_convictions=False, convi
 def count_semicolons(s):
     return s.count(";")
 
-def populate_responses(api_key, initial_prompt, model_name, dataframe, input_col, output_col, 
-                       batch_size=10, max_tokens=500, max_retries=5, number_of_responses=2):
+def populate_responses(api_key, initial_prompt,  model_name, dataframe, input_col, output_col,
+                       batch_size=10, max_tokens=500, max_retries=5, number_of_responses=2, system_prompt =  'You are a helpful assistant with vast legal knowledge.'):
 
     openai.api_key = api_key  # Set the API key
 
@@ -146,7 +146,7 @@ def populate_responses(api_key, initial_prompt, model_name, dataframe, input_col
             completion = openai.ChatCompletion.create(
                 model=model_name,
                 messages=[
-                    {'role': 'system', 'content': 'You are a helpful assistant with vast legal knowledge.'},
+                    {'role': 'system', 'content': system_prompt},
                     {'role': 'user', 'content': initial_prompt},
                     {'role': 'assistant', 'content': 'Yes'},
                     {'role': 'user', 'content': f'{prompt}'}
