@@ -12,6 +12,9 @@ import matplotlib.pyplot as plt
 import cartopy.crs as ccrs
 from typing import Tuple, List
 
+from shapely.ops import cascaded_union
+
+
 
 # %% GEOCODING ################################################################
 # Initialize Nominatim geolocator
@@ -228,6 +231,26 @@ class CustomTiles(cimgt.GoogleWTS):
 
 
 
+def concave_hull(gdf):
+    """
+    Computes the concave hull for the given GeoDataFrame.
+    
+    Parameters:
+    -----------
+    gdf : geopandas.GeoDataFrame
+        Input GeoDataFrame containing geometry data.
+        
+    Returns:
+    --------
+    geopandas.GeoDataFrame
+        A new GeoDataFrame with the concave hull of the input.
+    """
+    
+    # Calculate the union of all geometries in the GeoDataFrame
+    merged_geometry = cascaded_union(gdf.geometry)
+    
+    # Create and return a new GeoDataFrame
+    return gpd.GeoDataFrame([{'geometry': merged_geometry}], geometry='geometry')
 
 
 
