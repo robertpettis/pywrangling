@@ -148,6 +148,123 @@ def create_colormap(percentiles):
 
 
 
+
+
+
+
+
+
+
+""" The below section will be to help us make some attractive static maps. """
+
+
+class CustomTiles(cimgt.GoogleWTS):
+    """
+    A custom tile class to fetch map tiles from a specified URL.
+    
+    Extends the GoogleWTS class from cartopy.io.img_tiles.
+    
+    Attributes:
+    -----------
+    url : str
+        The URL template to fetch the tiles. It should have placeholders for `x`, `y`, `z`, and `s`.
+        
+    subdomains : str, optional
+        Subdomains to be used in the URL. The default is 'abc'.
+    
+    Methods:
+    --------
+    _image_url(tile) -> str
+        Returns the URL for a specific tile based on its x, y, z coordinates.
+    """
+
+    def __init__(self, url, subdomains='abc'):
+        """
+        Initializes the CustomTiles class.
+        
+        Parameters:
+        -----------
+        url : str
+            The URL template to fetch the tiles.
+            
+        subdomains : str, optional
+            Subdomains to be used in the URL. The default is 'abc'.
+        """
+        # Store the URL and subdomains provided by the user
+        self.url = url
+        self.subdomains = subdomains
+        
+        # Call the constructor of the parent class (GoogleWTS)
+        super().__init__()
+
+    def _image_url(self, tile):
+        """
+        Returns the URL for a specific tile.
+        
+        Parameters:
+        -----------
+        tile : tuple
+            A tuple containing the x, y, z coordinates of the tile.
+            
+        Returns:
+        --------
+        str
+            The URL to fetch the image for the specified tile.
+        """
+        # Extract x, y, z coordinates from the tile tuple
+        x, y, z = tile
+        
+        # Select a subdomain based on the tile coordinates.
+        # This helps in distributing requests across different subdomains.
+        s = self.subdomains[(x + y) % len(self.subdomains)]
+        
+        # Format the URL with the tile coordinates and subdomain
+        url = self.url.format(x=x, y=y, z=z, s=s)
+        
+        return url
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 # %%% A function to create the map
 
 
