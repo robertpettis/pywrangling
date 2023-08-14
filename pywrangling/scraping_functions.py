@@ -47,3 +47,21 @@ def find_and_highlight(element):
 
     # Return the element
     return element
+
+
+
+
+
+
+
+# Initialize a browser with basic settings
+def initialize_browser(chromepath):
+    # Set Chrome options for full screen
+    chrome_options = Options()
+    chrome_options.add_argument("--start-maximized")
+    
+    # Provide the path to the chromedriver executable
+    service = Service(executable_path=chromepath)
+    driver = webdriver.Chrome(service=service,options=chrome_options)
+    
+    return driver
