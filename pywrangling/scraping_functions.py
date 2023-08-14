@@ -81,3 +81,50 @@ def initialize_browser(chromepath):
     driver = webdriver.Chrome(service=service,options=chrome_options)
     
     return driver
+
+
+# A basic credential entering code. 
+# A potential update would be to add an argument for a wait 
+def enter_credentials(driver, username, password, 
+                      username_locator_type, username_locator_value, 
+                      password_locator_type, password_locator_value):
+    """
+    Enter credentials into a web form.
+
+    Parameters:
+    - driver: The selenium WebDriver object.
+    - username: The user's username.
+    - password: The user's password.
+    - username_locator_type: Type of locator for username (e.g., 'id', 'xpath', 'css selector', etc.)
+    - username_locator_value: The value of the locator for the username input field.
+    - password_locator_type: Type of locator for password.
+    - password_locator_value: The value of the locator for the password input field.
+
+    Example usage:
+    enter_credentials(driver, 'my_username', 'my_password', 'xpath', '//input[@name="user"]', 'id', 'password')
+    """
+
+    # Map locator types to their corresponding selenium By attributes
+    locator_type_map = {
+        'id': By.ID,
+        'xpath': By.XPATH,
+        'css selector': By.CSS_SELECTOR,
+        'name': By.NAME,
+        'class name': By.CLASS_NAME,
+        'tag name': By.TAG_NAME,
+        'link text': By.LINK_TEXT,
+        'partial link text': By.PARTIAL_LINK_TEXT
+    }
+
+    # Send username
+    user_elem = find_and_highlight(driver.find_element(locator_type_map[username_locator_type], username_locator_value))
+    user_elem.clear()  # Clear any existing values
+    user_elem.send_keys(username)  # Enter username
+        
+    # Send password
+    pass_elem = find_and_highlight(driver.find_element(locator_type_map[password_locator_type], password_locator_value))
+    pass_elem.clear()  # Clear any existing values
+    pass_elem.send_keys(password)  # Enter password
+
+    # Submit the form
+    pass_elem.submit()
