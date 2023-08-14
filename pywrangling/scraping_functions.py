@@ -4,6 +4,22 @@ These functions are designed to add utility to web scraping work.
 import time
 
 
+# Selenium Packages
+from selenium import webdriver  # Selenium WebDriver for browser automation
+from selenium.webdriver.chrome.options import Options  # Chrome options for customization
+from selenium.webdriver.common.by import By  # Locating elements using different strategies
+from selenium.webdriver.support.ui import WebDriverWait  # Waiting for elements to load
+from selenium.webdriver.support import expected_conditions as EC  # Expected conditions for waiting
+from selenium.webdriver.common.keys import Keys  # Keys for keyboard actions
+from selenium.common.exceptions import NoSuchElementException  # Exception for element not found
+from selenium.webdriver.chrome.service import Service  # ChromeDriver service
+from selenium.webdriver.common.alert import Alert #Handling some alert errors
+from selenium.common.exceptions import NoAlertPresentException
+from selenium.common.exceptions import TimeoutException
+
+
+
+
 def find_and_highlight(element):
     """
     Highlights a web element on a webpage.
