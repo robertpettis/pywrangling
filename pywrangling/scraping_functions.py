@@ -18,6 +18,7 @@ from selenium.common.exceptions import NoAlertPresentException
 from selenium.common.exceptions import TimeoutException
 
 import boto3 
+import pandas as pd
 
 
 def find_and_highlight(element):
@@ -132,55 +133,50 @@ def enter_credentials(driver, username, password,
     
     
     
-    
-    
-def filter_crawled_data(df, s3_client, bucket_name, subfolder_path, variables, separator=None):
+
+"""The main use for this is to collect the names of files already crawled so that an inturrupted crawl doesnt start from scratch."""
+def s3_glob(s3_client, bucket_name, subfolder_path, extensions, subfolders=None):
     """
-    Filters the DataFrame by removing rows corresponding to files found in the specified S3 subfolder and errors/ subfolder.
+    Returns a DataFrame with names of all files with given extensions from the specified S3 bucket and subfolder(s).
     
     Parameters:
-    df (DataFrame): The DataFrame to filter.
     s3_client (boto3.client): The S3 client.
     bucket_name (str): The S3 bucket name.
-    subfolder_path (str): The path to the subfolder to check.
-    variables (list): A list of variable names corresponding to filename components.
-    separator (str, optional): A separator used if multiple variables are in the filename.
+    subfolder_path (str): The path to the main subfolder to check.
+    extensions (list): A list of file extensions to look for.
+    subfolders (list, optional): A list of subfolder names to look in.
 
     Returns:
-    DataFrame: The filtered DataFrame.
+    DataFrame: A DataFrame containing the filenames.
 
     Example:
-    # Single variable usage
-    filtered_df = filter_crawled_data(df, s3_client, 'sicuro-sanbernardino', 'Data/Crawl/2023-08-14/', ['case_number'])
-
-    # Multiple variable usage
-    filtered_df = filter_crawled_data(df, s3_client, 'sicuro-sanbernardino', 'Data/Crawl/2023-08-14/', ['case_number', 'party_id'], '-')
+    filenames_df = list_files(s3_client, 'sicuro-sanbernardino', 'Data/Crawl/2023-08-14/', ['.html'], subfolders=['errors'])
     """
     # Paginator to handle more than 1000 files
     paginator = s3_client.get_paginator('list_objects_v2')
-    operation_parameters = {'Bucket': bucket_name, 'Prefix': subfolder_path}
-    page_iterator = paginator.paginate(**operation_parameters)
+    filenames = []
 
-    # Set to store unique identifiers from filenames
-    file_ids = set()
+    if subfolders is None:
+        subfolders = ['']
 
-    for page in page_iterator:
-        for content in page['Contents']:
-            key = content['Key']
-            if key.endswith('.html') and not key.endswith('timeout/'):
-                # Extract the identifier(s) from the filename
-                filename = key.split('/')[-1].replace('.html', '')
-                ids = filename.split(separator) if separator else [filename]
+    for subfolder in subfolders:
+        operation_parameters = {'Bucket': bucket_name, 'Prefix': subfolder_path + subfolder}
+        page_iterator = paginator.paginate(**operation_parameters)
 
-                # Map the variables and ids
-                file_id = tuple(df[var].astype(str) for var, id_ in zip(variables, ids))
-                file_ids.add(file_id)
+        found_files = False
+        for page in page_iterator:
+            for content in page['Contents']:
+                key = content['Key']
+                if any(key.endswith(ext) for ext in extensions):
+                    filenames.append(key.split('/')[-1])
+                    found_files = True
 
-    # Drop rows from the DataFrame that match the found identifiers
-    filter_condition = tuple(df[var].astype(str) for var in variables)
-    filtered_df = df[~df[filter_condition].apply(tuple, axis=1).isin(file_ids)]
+        if not found_files and subfolder:
+            raise FileNotFoundError(f"Subfolder '{subfolder}' not found in '{subfolder_path}'.")
 
-    return filtered_df
+    filenames_df = pd.DataFrame({'filename': filenames})
+
+    return filenames_df
 
     
     
