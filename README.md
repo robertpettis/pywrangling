@@ -67,6 +67,7 @@ print(df)
 
 This function moves a column in a DataFrame to a specified position.
 
+Create the data:
 ```python
 import pandas as pd
 import pywrangling.wrangling_functions as wf
@@ -76,7 +77,10 @@ df = pd.DataFrame({
     'B': [4, 5, 6],
     'C': [7, 8, 9]
 })
+```
 
+Make the "B" column first. 
+```
 df = wf.move_column(df, 'B', 'first')
 print(df)
 ```
@@ -90,7 +94,7 @@ print(df)
 2  6  3  9
 ```
 
-
+Make the "B" column the third column.
 ```
 df = wf.move_column(df, 'B', 3)
 print(df)
@@ -106,6 +110,7 @@ print(df)
 2  3  9  6
 ```
 
+Return the "B" column to be after the "A" column.
 ```
 df = wf.move_column(df, 'B', pos='after', ref_col="A")
 print(df)
