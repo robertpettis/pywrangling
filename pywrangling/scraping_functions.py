@@ -17,7 +17,7 @@ from selenium.webdriver.common.alert import Alert #Handling some alert errors
 from selenium.common.exceptions import NoAlertPresentException
 from selenium.common.exceptions import TimeoutException
 
-
+import boto3 
 
 
 def find_and_highlight(element):
@@ -128,3 +128,77 @@ def enter_credentials(driver, username, password,
 
     # Submit the form
     pass_elem.submit()
+    
+    
+    
+    
+    
+    
+def filter_crawled_data(df, s3_client, bucket_name, subfolder_path, variables, separator=None):
+    """
+    Filters the DataFrame by removing rows corresponding to files found in the specified S3 subfolder and errors/ subfolder.
+    
+    Parameters:
+    df (DataFrame): The DataFrame to filter.
+    s3_client (boto3.client): The S3 client.
+    bucket_name (str): The S3 bucket name.
+    subfolder_path (str): The path to the subfolder to check.
+    variables (list): A list of variable names corresponding to filename components.
+    separator (str, optional): A separator used if multiple variables are in the filename.
+
+    Returns:
+    DataFrame: The filtered DataFrame.
+
+    Example:
+    # Single variable usage
+    filtered_df = filter_crawled_data(df, s3_client, 'sicuro-sanbernardino', 'Data/Crawl/2023-08-14/', ['case_number'])
+
+    # Multiple variable usage
+    filtered_df = filter_crawled_data(df, s3_client, 'sicuro-sanbernardino', 'Data/Crawl/2023-08-14/', ['case_number', 'party_id'], '-')
+    """
+    # Paginator to handle more than 1000 files
+    paginator = s3_client.get_paginator('list_objects_v2')
+    operation_parameters = {'Bucket': bucket_name, 'Prefix': subfolder_path}
+    page_iterator = paginator.paginate(**operation_parameters)
+
+    # Set to store unique identifiers from filenames
+    file_ids = set()
+
+    for page in page_iterator:
+        for content in page['Contents']:
+            key = content['Key']
+            if key.endswith('.html') and not key.endswith('timeout/'):
+                # Extract the identifier(s) from the filename
+                filename = key.split('/')[-1].replace('.html', '')
+                ids = filename.split(separator) if separator else [filename]
+
+                # Map the variables and ids
+                file_id = tuple(df[var].astype(str) for var, id_ in zip(variables, ids))
+                file_ids.add(file_id)
+
+    # Drop rows from the DataFrame that match the found identifiers
+    filter_condition = tuple(df[var].astype(str) for var in variables)
+    filtered_df = df[~df[filter_condition].apply(tuple, axis=1).isin(file_ids)]
+
+    return filtered_df
+
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
