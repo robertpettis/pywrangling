@@ -77,17 +77,17 @@ df = pd.DataFrame({
     'C': [7, 8, 9]
 })
 
-df = wf.move_column(df, 'A', 'first')
+df = wf.move_column(df, 'B', 'first')
 print(df)
 ```
 
 **Output:**
 
 ```
-   A  B  C
-0  1  4  7
-1  2  5  8
-2  3  6  9
+   B  A  C
+0  4  1  7
+1  5  2  8
+2  6  3  9
 ```
 
 
