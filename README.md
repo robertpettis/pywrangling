@@ -91,6 +91,37 @@ print(df)
 ```
 
 
+```
+df = wf.move_column(df, 'B', 3)
+print(df)
+```
+
+**Output:**
+
+```
+print(df)
+   A  C  B
+0  1  7  4
+1  2  8  5
+2  3  9  6
+```
+
+```
+df = wf.move_column(df, 'B', pos='after', ref_col="A")
+print(df)
+```
+
+**Output:**
+
+```
+   A  B  C
+0  1  4  7
+1  2  5  8
+2  3  6  9
+```
+
+
+
 ### `replace`
 
 This function intends to mimic Stata's replace function. It allows you to specify a condition for the replacement operation and supports 'n' notation to indicate shift operation.
