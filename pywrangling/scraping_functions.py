@@ -19,7 +19,7 @@ from selenium.common.exceptions import TimeoutException
 
 import boto3 
 import pandas as pd
-
+import warnings
 
 def find_and_highlight(element):
     """
@@ -135,6 +135,7 @@ def enter_credentials(driver, username, password,
     
 
 """The main use for this is to collect the names of files already crawled so that an inturrupted crawl doesnt start from scratch."""
+
 def s3_glob(s3_client, bucket_name, subfolder_path, extensions):
     """
     Returns a DataFrame with names of all files with given extensions or no extension from the specified S3 bucket and subfolder.
@@ -147,9 +148,6 @@ def s3_glob(s3_client, bucket_name, subfolder_path, extensions):
 
     Returns:
     DataFrame: A DataFrame containing the filenames.
-
-    Raises:
-    FileNotFoundError: If the specified subfolder path does not exist in the S3 bucket.
 
     Example:
     filenames_df = s3_glob(s3_client, 'sicuro-sanbernardino', 'Data/Crawl/2023-08-14/', ['.html', ''])
@@ -174,7 +172,7 @@ def s3_glob(s3_client, bucket_name, subfolder_path, extensions):
                     filenames.append(file_name)
 
     if not found_subfolder:
-        raise FileNotFoundError(f"Subfolder path {subfolder_path} not found in bucket {bucket_name}")
+        warnings.warn(f"Subfolder path {subfolder_path} not found in bucket {bucket_name}")
 
     filenames_df = pd.DataFrame({'filename': filenames})
 
