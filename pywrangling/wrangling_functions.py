@@ -173,12 +173,12 @@ def replace(df, column, new_value, condition):
 
     Parameters:
     df: pandas DataFrame
-    column: column name to be modified
-    condition: condition to be applied on the column
-    new_value: new value (could be a column name or a constant value, with optional 'n' notation for shift)
+    column: str, column name to be modified
+    new_value: str or value, new value (could be a column name or a constant value, with optional 'n' notation for shift)
+    condition: str, condition to be applied on the column
 
     Returns:
-    Modified DataFrame with replaced values according to the condition
+    pandas.DataFrame: Modified DataFrame with replaced values according to the condition
 
     The function supports 'n' notation to indicate shift operation in pandas. For example, 'B[n-1]' is translated to 'B.shift(-1)'.
     The 'n' notation supports both positive and negative integers.
@@ -188,87 +188,47 @@ def replace(df, column, new_value, condition):
     We want to replace values in column 'A' where B equals 'mouse' or the previous row of B equals 'dog' and the next row of C is greater than -0.4.
     We want to replace these values with the value in column 'B' from two rows ahead. Here's how we can do it:
 
-    # Create a sample DataFrame with various types of data
-    np.random.seed(0)
-    df = pd.DataFrame({
-        'A': np.random.randint(0, 100, 10),
-        'B': np.random.choice(['cat', 'dog', 'mouse'], 10),
-        'C': np.random.normal(0, 1, 10),
-        'D': pd.date_range('2023-01-01', periods=10)
-    })
-
     condition = "(B == 'mouse') | (B[n-1] == 'dog') & (C[n+1] > -0.4)"
     new_value = 'B[n+2]'
-    df_modified = replace(df, 'A', condition, new_value)
+    df_modified = replace(df, 'A', new_value, condition)
     """
-    # Helper function to translate 'n' notation in condition to '.shift()' notation in pandas.
-    def translate_n_to_shift(condition):
+
+    # Making a deep copy of the DataFrame to ensure the original DataFrame remains unchanged
+    df = df.copy()
+
+    # Function to translate 'n' notation to shifted column names
+    def translate_n_to_shifted_col_names(condition):
         bracket_contents = re.findall(r'\[n([+-]?\d+)\]', condition)
         groups = re.findall(r'(\w+\[n[+-]?\d+\])', condition)
-        shift_dict = {group: group.split('[')[0] + '.shift(' + bracket_content + ')'
+        shift_dict = {group: group.split('[')[0] + '_shifted_' + bracket_content.replace('-', 'm').replace('+', '')
                       for group, bracket_content in zip(groups, bracket_contents)}
-        for group, shift in shift_dict.items():
-            condition = condition.replace(group, shift)
+        for group, shifted_col_name in shift_dict.items():
+            condition = condition.replace(group, shifted_col_name)
         return condition, shift_dict
 
-    # Make copies of the dataframe and apply shifts.
     df_condition = df.copy()
-    df_new_value = df.copy()
-
-    # Preprocess the condition.
-    shift_pattern = re.compile(r'(\w+).shift\(([pm]\d+)\)')
-    condition_string = translate_n_to_shift(condition)[0]
-    
-    # Extract the shifts for each column from the condition string.
-    condition_shifts = {col: int(num.replace('p', '').replace('m', '-')) for col, num in shift_pattern.findall(condition_string)}
-    shift_cols = shift_pattern.findall(condition_string)
-    
-    # Replace "column.shift(<number>)" with "column_shifted_<number>" in the condition.
-    for shift_col, shift_num in shift_cols:
-        condition_string = condition_string.replace(f'{shift_col}.shift({shift_num})', f'{shift_col}_shifted_{shift_num}')
-
-    # Apply shifts to df_condition and create new columns.
-    for col, shift in condition_shifts.items():
-        shifted_col_name = f'{col}_shifted_{shift_num}' 
+    condition_string, shift_dict = translate_n_to_shifted_col_names(condition)
+    for original, shifted_col_name in shift_dict.items():
+        col = original.split('[')[0]
+        shift = int(re.findall(r'\[n([+-]?\d+)\]', original)[0])
         df_condition[shifted_col_name] = df[col].shift(shift)
 
-    # Check if new_value is a string and contains 'n' notation. If yes, apply shift.
+    mask = df_condition.eval(condition_string)
+
     if isinstance(new_value, str) and '[n' in new_value:
         new_value_shift = -int(re.findall(r'\[n([+-]?\d+)\]', new_value)[0])
         new_value = re.sub(r'\[n([+-]?\d+)\]', '', new_value)
-        df_new_value[new_value] = df[new_value].shift(new_value_shift)
-    
-    # Create a mask for rows where condition is met.
-    if ".str." in condition:
-        col_name, str_method = condition.split(".str.")
-        method_name, args = re.match(r"(\w+)\((.*)\)", str_method).groups()
-        args = args.split(', ')
-        col = df[col_name]
-        method = getattr(col.str, method_name)
-        if len(args) == 1:
-            mask = method(args[0])
-        else:
-            mask = method(args[0], args[1])
-    else:
-        mask = df_condition.eval(condition_string)
+        new_value = df[new_value].shift(new_value_shift)
 
-    
-    # If new_value is a column name, get the values from the shifted dataframe.
     if isinstance(new_value, str) and new_value in df.columns:
-        new_value = df_new_value[new_value]
-    
-    # Before replacing values, save the original column for comparison later.
+        new_value = df[new_value]
+
     original_column = df[column].copy()
-    
-    # Replace values where condition is met.
     df.loc[mask, column] = new_value
-    
-    # Compare the original and new columns and count the number of rows where the values differ.
     replaced_count = (df[column] != original_column).sum()
-    
-    # Print the number of real changes made.
+
     print(f'({replaced_count} real changes made)')
-    
+
     return df
 
 
