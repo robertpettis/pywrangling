@@ -135,48 +135,43 @@ def enter_credentials(driver, username, password,
     
 
 """The main use for this is to collect the names of files already crawled so that an inturrupted crawl doesnt start from scratch."""
-def s3_glob(s3_client, bucket_name, subfolder_path, extensions, subfolders=None):
+
+def s3_glob(s3_client, bucket_name, subfolder_path, extensions):
     """
-    Returns a DataFrame with names of all files with given extensions from the specified S3 bucket and subfolder(s).
+    Returns a DataFrame with names of all files with given extensions or no extension from the specified S3 bucket and subfolder.
     
     Parameters:
     s3_client (boto3.client): The S3 client.
     bucket_name (str): The S3 bucket name.
-    subfolder_path (str): The path to the main subfolder to check.
-    extensions (list): A list of file extensions to look for.
-    subfolders (list, optional): A list of subfolder names to look in.
+    subfolder_path (str): The path to the subfolder to check.
+    extensions (list): A list of file extensions to look for, including an empty string '' for files without extensions.
 
     Returns:
     DataFrame: A DataFrame containing the filenames.
 
     Example:
-    filenames_df = list_files(s3_client, 'sicuro-sanbernardino', 'Data/Crawl/2023-08-14/', ['.html'], subfolders=['errors'])
+    filenames_df = s3_glob(s3_client, 'sicuro-sanbernardino', 'Data/Crawl/2023-08-14/', ['.html', ''])
     """
     # Paginator to handle more than 1000 files
     paginator = s3_client.get_paginator('list_objects_v2')
+    operation_parameters = {'Bucket': bucket_name, 'Prefix': subfolder_path}
+    page_iterator = paginator.paginate(**operation_parameters)
+
     filenames = []
-
-    if subfolders is None:
-        subfolders = ['']
-
-    for subfolder in subfolders:
-        operation_parameters = {'Bucket': bucket_name, 'Prefix': subfolder_path + subfolder}
-        page_iterator = paginator.paginate(**operation_parameters)
-
-        found_files = False
-        for page in page_iterator:
+    for page in page_iterator:
+        if 'Contents' in page:  # Check if the 'Contents' key exists
             for content in page['Contents']:
                 key = content['Key']
-                if any(key.endswith(ext) for ext in extensions):
-                    filenames.append(key.split('/')[-1])
-                    found_files = True
+                file_name = key.split('/')[-1]
 
-        if not found_files and subfolder:
-            raise FileNotFoundError(f"Subfolder '{subfolder}' not found in '{subfolder_path}'.")
+                # Check if the file matches one of the extensions or has no extension
+                if any(file_name.endswith(ext) for ext in extensions) or ('.' not in file_name and '' in extensions):
+                    filenames.append(file_name)
 
     filenames_df = pd.DataFrame({'filename': filenames})
 
     return filenames_df
+
 
     
     
