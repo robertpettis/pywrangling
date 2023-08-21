@@ -85,10 +85,10 @@ def initialize_browser(chromepath):
 
 
 # A basic credential entering code. 
-# A potential update would be to add an argument for a wait 
 def enter_credentials(driver, username, password, 
                       username_locator_type, username_locator_value, 
-                      password_locator_type, password_locator_value):
+                      password_locator_type, password_locator_value,
+                      timeout=10):
     """
     Enter credentials into a web form.
 
@@ -100,12 +100,12 @@ def enter_credentials(driver, username, password,
     - username_locator_value: The value of the locator for the username input field.
     - password_locator_type: Type of locator for password.
     - password_locator_value: The value of the locator for the password input field.
+    - timeout: The maximum time to wait (in seconds) for the elements to be loaded.
 
     Example usage:
     enter_credentials(driver, 'my_username', 'my_password', 'xpath', '//input[@name="user"]', 'id', 'password')
     """
 
-    # Map locator types to their corresponding selenium By attributes
     locator_type_map = {
         'id': By.ID,
         'xpath': By.XPATH,
@@ -117,12 +117,18 @@ def enter_credentials(driver, username, password,
         'partial link text': By.PARTIAL_LINK_TEXT
     }
 
-    # Send username
+    # Wait for the username field to be present
+    WebDriverWait(driver, timeout).until(
+        EC.presence_of_element_located((locator_type_map[username_locator_type], username_locator_value))
+    )
     user_elem = find_and_highlight(driver.find_element(locator_type_map[username_locator_type], username_locator_value))
     user_elem.clear()  # Clear any existing values
     user_elem.send_keys(username)  # Enter username
-        
-    # Send password
+
+    # Wait for the password field to be present
+    WebDriverWait(driver, timeout).until(
+        EC.presence_of_element_located((locator_type_map[password_locator_type], password_locator_value))
+    )
     pass_elem = find_and_highlight(driver.find_element(locator_type_map[password_locator_type], password_locator_value))
     pass_elem.clear()  # Clear any existing values
     pass_elem.send_keys(password)  # Enter password
@@ -130,7 +136,7 @@ def enter_credentials(driver, username, password,
     # Submit the form
     pass_elem.submit()
     
-    
+    print("Credentials successfully entered.")
     
     
 
