@@ -140,50 +140,6 @@ def enter_credentials(driver, username, password,
     
     
 
-"""The main use for this is to collect the names of files already crawled so that an inturrupted crawl doesnt start from scratch."""
-
-def s3_glob(s3_client, bucket_name, subfolder_path, extensions):
-    """
-    Returns a DataFrame with names of all files with given extensions or no extension from the specified S3 bucket and subfolder.
-    
-    Parameters:
-    s3_client (boto3.client): The S3 client.
-    bucket_name (str): The S3 bucket name.
-    subfolder_path (str): The path to the subfolder to check.
-    extensions (list): A list of file extensions to look for, including an empty string '' for files without extensions.
-
-    Returns:
-    DataFrame: A DataFrame containing the filenames.
-
-    Example:
-    filenames_df = s3_glob(s3_client, 'sicuro-sanbernardino', 'Data/Crawl/2023-08-14/', ['.html', ''])
-    """
-    # Paginator to handle more than 1000 files
-    paginator = s3_client.get_paginator('list_objects_v2')
-    operation_parameters = {'Bucket': bucket_name, 'Prefix': subfolder_path}
-    page_iterator = paginator.paginate(**operation_parameters)
-
-    filenames = []
-    found_subfolder = False
-    
-    for page in page_iterator:
-        if 'Contents' in page:  # Check if the 'Contents' key exists
-            found_subfolder = True  # Subfolder exists if there are contents
-            for content in page['Contents']:
-                key = content['Key']
-                file_name = key.split('/')[-1]
-
-                # Check if the file matches one of the extensions or has no extension
-                if any(file_name.endswith(ext) for ext in extensions) or ('.' not in file_name and '' in extensions):
-                    filenames.append(file_name)
-
-    if not found_subfolder:
-        warnings.warn(f"Subfolder path {subfolder_path} not found in bucket {bucket_name}")
-
-    filenames_df = pd.DataFrame({'filename': filenames})
-
-    return filenames_df
-
     
     
     
