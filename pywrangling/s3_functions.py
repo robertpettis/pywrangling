@@ -75,7 +75,7 @@ def download_files_from_s3(s3_client, bucket_name, subfolder_path, extensions, s
     list: List of downloaded file paths.
 
     Example:
-    downloaded_files = download_files_from_s3(s3_client, 'sicuro', 'Data/Crawl/2023-08-14/', ['.csv', ''], '/path/to/save', sample_size=100)
+    downloaded_files = download_files_from_s3(s3_client, 'sicuro-sanbernardino', 'Data/Crawl/2023-08-14/', ['.csv', ''], '/path/to/save', sample_size=100)
     """
 
     # Ensure the save path exists
@@ -107,15 +107,23 @@ def download_files_from_s3(s3_client, bucket_name, subfolder_path, extensions, s
     if sample_size is not None:
         file_keys = random.sample(file_keys, sample_size)
 
+    def sanitize_filename(filename):
+        # Replace or remove any characters that might be invalid in Windows filenames
+        invalid_chars = '<>:"/\\|?*'
+        for char in invalid_chars:
+            filename = filename.replace(char, '_')
+        return filename
+
     downloaded_files = []
     for file_key in file_keys:
-        # Download the file
         file_name = os.path.basename(file_key)
+        file_name = sanitize_filename(file_name)  # Sanitize the filename
         local_path = os.path.join(save_path, file_name)
         s3_client.download_file(bucket_name, file_key, local_path)
         downloaded_files.append(local_path)
 
     return downloaded_files
+
 
 
 
