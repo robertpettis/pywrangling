@@ -8,9 +8,9 @@ Created on Mon Aug 21 14:51:31 2023
 import boto3  # AWS SDK for Python to interact with Amazon S3 and other AWS services
 import os  # Provides functions to interact with the operating system
 import random  # Provides functions to generate random numbers
-import pandas as pd  # Data analysis library to handle data frames
 import warnings  # Used to issue warning messages
-
+from tqdm import tqdm  # Progress bar library
+import pandas as pd 
 
 
 """The main use for this is to collect the names of files already crawled so that an inturrupted crawl doesnt start from scratch."""
@@ -73,9 +73,6 @@ def download_files_from_s3(s3_client, bucket_name, subfolder_path, extensions, s
 
     Returns:
     list: List of downloaded file paths.
-
-    Example:
-    downloaded_files = download_files_from_s3(s3_client, 'sicuro-sanbernardino', 'Data/Crawl/2023-08-14/', ['.csv', ''], '/path/to/save', sample_size=100)
     """
 
     # Ensure the save path exists
@@ -107,15 +104,16 @@ def download_files_from_s3(s3_client, bucket_name, subfolder_path, extensions, s
     if sample_size is not None:
         file_keys = random.sample(file_keys, sample_size)
 
+    # Define a function to sanitize filenames
     def sanitize_filename(filename):
-        # Replace or remove any characters that might be invalid in Windows filenames
         invalid_chars = '<>:"/\\|?*'
         for char in invalid_chars:
             filename = filename.replace(char, '_')
         return filename
 
     downloaded_files = []
-    for file_key in file_keys:
+    # Iterate through file keys with a progress bar
+    for file_key in tqdm(file_keys, desc='Downloading files', unit='file'):
         file_name = os.path.basename(file_key)
         file_name = sanitize_filename(file_name)  # Sanitize the filename
         local_path = os.path.join(save_path, file_name)
