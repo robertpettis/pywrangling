@@ -1,3 +1,6 @@
+# TODO: The number of columns replaced needs correction
+
+
 """
 This library provides a set of functions designed to simplify common data
 wrangling tasks.
@@ -190,7 +193,7 @@ def replace(df, column, new_value, condition):
     df_modified = replace(df, 'A', new_value, condition)
     """
 
-    # Making a deep copy of the DataFrame to ensure the original DataFrame remains unchanged
+ # Making a deep copy of the DataFrame to ensure the original DataFrame remains unchanged
     df = df.copy()
 
     # Function to translate 'n' notation to shifted column names
@@ -207,13 +210,13 @@ def replace(df, column, new_value, condition):
     condition_string, shift_dict = translate_n_to_shifted_col_names(condition)
     for original, shifted_col_name in shift_dict.items():
         col = original.split('[')[0]
-        shift = int(re.findall(r'\[n([+-]?\d+)\]', original)[0])
+        shift = -int(re.findall(r'\[n([+-]?\d+)\]', original)[0])  # Negate the shift to align with Python's shift behavior
         df_condition[shifted_col_name] = df[col].shift(shift)
 
     mask = df_condition.eval(condition_string)
 
     if isinstance(new_value, str) and '[n' in new_value:
-        new_value_shift = -int(re.findall(r'\[n([+-]?\d+)\]', new_value)[0])
+        new_value_shift = -int(re.findall(r'\[n([+-]?\d+)\]', new_value)[0])  # Negate the shift to align with Python's shift behavior
         new_value = re.sub(r'\[n([+-]?\d+)\]', '', new_value)
         new_value = df[new_value].shift(new_value_shift)
 
