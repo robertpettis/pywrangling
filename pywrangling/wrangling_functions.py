@@ -232,41 +232,33 @@ def replace(df, column, new_value, condition):
 
 
 
-def how_is_this_not_a_duplicate(df, unique_cols, new_col_name='problematic_cols', nan_placeholder='NaN_placeholder'):
+def how_is_this_not_a_duplicate(df, unique_cols, new_col_name='problematic_cols'):
     """
-    Identify columns that differ between rows that should be uniquely identified by the given columns.
+    Identify columns that differ between the rows for a given combination of identifiers.
 
     Parameters:
     df (DataFrame): Input DataFrame
     unique_cols (list of str): Columns that should uniquely identify a row
     new_col_name (str, optional): Name of the new column to be added. Default is 'problematic_cols'.
-    nan_placeholder (str, optional): Placeholder value for NaN in unique columns. Default is 'NaN_placeholder'.
 
     Returns:
     DataFrame: DataFrame with an additional column, containing a list of columns preventing the row from being labeled a duplicate.
-
-    Example:
-    >>> df = pd.DataFrame({'person_id': [1, 1], 'name': ['Alice', 'Alice'], 'age': [30, 31]})
-    >>> result = how_is_this_not_a_duplicate(df, ['person_id'])
-    >>> print(result['problematic_cols'])
-    0    age
-    1    age
-    Name: problematic_cols, dtype: object
     """
     df = df.sort_values(by=unique_cols)
-    df_unique_cols_no_nan = df[unique_cols].fillna(nan_placeholder)
+    df_unique_cols_no_nan = df[unique_cols].fillna('')
 
     duplicates = df_unique_cols_no_nan.duplicated(keep=False)
-    problematic_cols = df[duplicates].groupby(df_unique_cols_no_nan.loc[duplicates].to_records(index=False)).apply(lambda x: x.nunique(dropna=False) > 1)
-
-    def problematic_row(row):
-        tuple_key = tuple(row[col] if not pd.isna(row[col]) else nan_placeholder for col in unique_cols)
-        cols = problematic_cols.loc[tuple_key]
-        return ', '.join(cols.index[cols].tolist())
-
-    df.loc[duplicates, new_col_name] = df[duplicates].apply(problematic_row, axis=1)
-
-    return df
+    result_df = df.copy()
+    result_df[new_col_name] = ''
+    for idx in df[duplicates].index.tolist():
+        row = df.loc[idx]
+        other_rows = df.loc[duplicates & (df_unique_cols_no_nan == df_unique_cols_no_nan.loc[idx]).all(axis=1)]
+        other_rows = other_rows[other_rows.index != idx]
+        if not other_rows.empty:
+            cols_diff = ', '.join(col for col in df.columns if row[col] != other_rows[col].iloc[0])
+            result_df.at[idx, new_col_name] = cols_diff
+    
+    return result_df
 
 
 
