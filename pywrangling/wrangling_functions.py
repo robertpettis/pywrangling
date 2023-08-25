@@ -276,6 +276,11 @@ def how_is_this_not_a_duplicate(df, unique_cols, new_col_name='problematic_cols'
     
     return result_df
 
+# %% Test Updated Function
+# Testing the updated function on the sample DataFrame
+result_df_updated = how_is_this_not_a_duplicate(df, unique_cols=['ID', 'Name'])
+result_df_updated
+
 
 
 
