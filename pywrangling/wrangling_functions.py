@@ -231,9 +231,10 @@ def replace(df, column, new_value, condition):
 
 
 
-def how_is_this_not_a_duplicate(df, unique_cols, new_col_name='problematic_cols'):
+def how_is_this_not_a_duplicate_overwrite(df, unique_cols, new_col_name='problematic_cols'):
     """
     Identify columns that differ between the rows for a given combination of identifiers.
+    Overwrites the existing problematic_cols column if it exists.
     
     Parameters:
     df (DataFrame): Input DataFrame
@@ -245,12 +246,16 @@ def how_is_this_not_a_duplicate(df, unique_cols, new_col_name='problematic_cols'
     
     Example:
     >>> df = pd.DataFrame({'ID': [1, 1], 'Name': ['Alice', 'Alice'], 'Age': [25, np.nan]})
-    >>> how_is_this_not_a_duplicate(df, unique_cols='ID')
+    >>> how_is_this_not_a_duplicate_overwrite(df, unique_cols='ID')
     """
     
     # Make sure unique_cols is a list
     if not isinstance(unique_cols, list):
         unique_cols = [unique_cols]
+    
+    # If the new column already exists, drop it
+    if new_col_name in df.columns:
+        df.drop(columns=[new_col_name], inplace=True)
     
     df = df.sort_values(by=unique_cols)
     df_unique_cols_no_nan = df[unique_cols].fillna('')
@@ -268,16 +273,31 @@ def how_is_this_not_a_duplicate(df, unique_cols, new_col_name='problematic_cols'
             # Check if a column has differing values, considering NaN to be the same as NaN
             cols_diff = ', '.join(
                 col for col in df.columns 
-                if not pd.isna(row[col]) and not pd.isna(other_rows[col].iloc[0]) and row[col] != other_rows[col].iloc[0]
-                or (not pd.isna(row[col]) and pd.isna(other_rows[col].iloc[0]))
-                or (pd.isna(row[col]) and not pd.isna(other_rows[col].iloc[0]))
+                if (
+                    (not pd.isna(row[col]) or not pd.isna(other_rows[col].iloc[0])) and 
+                    (row[col] != other_rows[col].iloc[0])
+                )
             )
             
-            # Only populate the new column if there are problematic columns
             if cols_diff:
                 result_df.at[idx, new_col_name] = cols_diff
     
     return result_df
+
+# Creating a sample DataFrame to test the debugged function with an existing 'problematic_cols' column
+sample_data_overwrite = {
+    'person_id': [1, 1, 2, 2],
+    'persontype': ['type1', 'type1', 'type2', 'type2'],
+    'Age': [25, 30, 40, 40],
+    'Salary': [50000, 50000, 60000, 70000],
+    'problematic_cols': ['dummy', 'dummy', 'dummy', 'dummy']
+}
+
+df_overwrite = pd.DataFrame(sample_data_overwrite)
+
+# Test the debugged function that overwrites the existing 'problematic_cols' column
+how_is_this_not_a_duplicate_overwrite(df_overwrite, ['person_id', 'persontype'])
+
 
 
 
