@@ -269,17 +269,15 @@ def how_is_this_not_a_duplicate(df, unique_cols, new_col_name='problematic_cols'
             cols_diff = ', '.join(
                 col for col in df.columns 
                 if not pd.isna(row[col]) and not pd.isna(other_rows[col].iloc[0]) and row[col] != other_rows[col].iloc[0]
-                or pd.isna(row[col]) and not pd.isna(other_rows[col].iloc[0])
-                or not pd.isna(row[col]) and pd.isna(other_rows[col].iloc[0])
+                or (not pd.isna(row[col]) and pd.isna(other_rows[col].iloc[0]))
+                or (pd.isna(row[col]) and not pd.isna(other_rows[col].iloc[0]))
             )
-            result_df.at[idx, new_col_name] = cols_diff
+            
+            # Only populate the new column if there are problematic columns
+            if cols_diff:
+                result_df.at[idx, new_col_name] = cols_diff
     
     return result_df
-
-# %% Test Updated Function
-# Testing the updated function on the sample DataFrame
-result_df_updated = how_is_this_not_a_duplicate(df, unique_cols=['ID', 'Name'])
-result_df_updated
 
 
 
