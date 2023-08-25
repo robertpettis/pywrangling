@@ -250,10 +250,12 @@ def how_is_this_not_a_duplicate(df, unique_cols, new_col_name='problematic_cols'
     duplicates = df_unique_cols_no_nan.duplicated(keep=False)
     result_df = df.copy()
     result_df[new_col_name] = ''
+    
     for idx in df[duplicates].index.tolist():
         row = df.loc[idx]
         other_rows = df.loc[duplicates & (df_unique_cols_no_nan == df_unique_cols_no_nan.loc[idx]).all(axis=1)]
         other_rows = other_rows[other_rows.index != idx]
+        
         if not other_rows.empty:
             cols_diff = ', '.join(col for col in df.columns if row[col] != other_rows[col].iloc[0])
             result_df.at[idx, new_col_name] = cols_diff
