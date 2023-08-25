@@ -179,22 +179,12 @@ def replace(df, column, new_value, condition):
 
     Returns:
     pandas.DataFrame: Modified DataFrame with replaced values according to the condition
-
-    The function supports 'n' notation to indicate shift operation in pandas. For example, 'B[n-1]' is translated to 'B.shift(-1)'.
-    The 'n' notation supports both positive and negative integers.
-
-    Example:
-    Suppose we have a DataFrame 'df' with columns 'A', 'B', 'C', and 'D'.
-    We want to replace values in column 'A' where B equals 'mouse' or the previous row of B equals 'dog' and the next row of C is greater than -0.4.
-    We want to replace these values with the value in column 'B' from two rows ahead. Here's how we can do it:
-
-    condition = "(B == 'mouse') | (B[n-1] == 'dog') & (C[n+1] > -0.4)"
-    new_value = 'B[n+2]'
-    df_modified = replace(df, 'A', new_value, condition)
     """
-
- # Making a deep copy of the DataFrame to ensure the original DataFrame remains unchanged
+    
+    # Making a deep copy of the DataFrame to ensure the original DataFrame remains unchanged
     df = df.copy()
+    df.sort_values(by=['person_id'], inplace=True)  # Sort by person_id for correct shifting
+    df.reset_index(drop=True, inplace=True)
 
     # Function to translate 'n' notation to shifted column names
     def translate_n_to_shifted_col_names(condition):
