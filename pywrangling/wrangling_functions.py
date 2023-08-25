@@ -113,9 +113,6 @@ def rename_columns(df, old_names, new_names=None, prefix=None, suffix=None, remo
 
 
 
-# new test
-
-
 
 
 
@@ -235,12 +232,7 @@ def replace(df, column, new_value, condition):
 
 
 
-
-
-
-
-
-def how_is_this_not_a_duplicate(df, unique_cols, new_col_name='problematic_cols'):
+def how_is_this_not_a_duplicate(df, unique_cols, new_col_name='problematic_cols', nan_placeholder='NaN_placeholder'):
     """
     This function takes a dataframe and a list of columns that should uniquely identify a row.
     It returns all columns that differ between the rows for that combination of identifiers.
@@ -249,6 +241,7 @@ def how_is_this_not_a_duplicate(df, unique_cols, new_col_name='problematic_cols'
     df (DataFrame): Input DataFrame
     unique_cols (list): List of columns that should uniquely identify a row
     new_col_name (str): Name of the new column to be added
+    nan_placeholder (str): Placeholder value for NaN in unique columns
 
     Returns:
     DataFrame: DataFrame with an additional column 'problematic_cols' which is 
@@ -257,16 +250,20 @@ def how_is_this_not_a_duplicate(df, unique_cols, new_col_name='problematic_cols'
     # Sort dataframe by unique_cols to ensure all rows with same unique_cols values are grouped together
     df = df.sort_values(by=unique_cols)
 
-    # Identify duplicate rows based on unique_cols
-    duplicates = df.duplicated(subset=unique_cols, keep=False)
+    # Replace NaN values with the specified placeholder in the unique_cols
+    df_unique_cols_no_nan = df[unique_cols].fillna(nan_placeholder)
 
-    # Group by unique_cols and find columns where number of unique values is greater than 1, but only for duplicate rows
-    problematic_cols = df[duplicates].groupby(unique_cols).apply(lambda x: x.nunique(dropna=False) > 1)
+    # Identify duplicate rows based on unique_cols without NaN values
+    duplicates = df_unique_cols_no_nan.duplicated(keep=False)
+
+    # Group by unique_cols without NaN values and find columns where number of unique values is greater than 1
+    problematic_cols = df[duplicates].groupby(df_unique_cols_no_nan.loc[duplicates].to_records(index=False)).apply(lambda x: x.nunique(dropna=False) > 1)
 
     # Create a new column in df which is a list of the problematic columns, but only for duplicate rows
-    df.loc[duplicates, new_col_name] = df[duplicates].apply(lambda row: ', '.join(problematic_cols.loc[tuple(row[col] if not pd.isna(row[col]) else np.nan for col in unique_cols)].index[problematic_cols.loc[tuple(row[col] if not pd.isna(row[col]) else np.nan for col in unique_cols)]].tolist()), axis=1)
+    df.loc[duplicates, new_col_name] = df[duplicates].apply(lambda row: ', '.join(problematic_cols.loc[tuple(row[col] if not pd.isna(row[col]) else nan_placeholder for col in unique_cols)].index[problematic_cols.loc[tuple(row[col] if not pd.isna(row[col]) else nan_placeholder for col in unique_cols)]].tolist()), axis=1)
 
     return df
+
 
 
 
