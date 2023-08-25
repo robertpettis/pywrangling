@@ -277,24 +277,6 @@ def how_is_this_not_a_duplicate(df, unique_cols, new_col_name='problematic_cols'
     
     return result_df
 
-# Creating a sample DataFrame to test the debugged function with an existing 'problematic_cols' column
-sample_data_overwrite = {
-    'person_id': [1, 1, 2, 2],
-    'persontype': ['type1', 'type1', 'type2', 'type2'],
-    'Age': [25, 30, 40, 40],
-    'Salary': [50000, 50000, 60000, 70000],
-    'problematic_cols': ['dummy', 'dummy', 'dummy', 'dummy']
-}
-
-df_overwrite = pd.DataFrame(sample_data_overwrite)
-
-# Test the debugged function that overwrites the existing 'problematic_cols' column
-how_is_this_not_a_duplicate_overwrite(df_overwrite, ['person_id', 'persontype'])
-
-
-
-
-
 
 
 
