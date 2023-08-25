@@ -231,19 +231,27 @@ def replace(df, column, new_value, condition):
 
 
 
-
 def how_is_this_not_a_duplicate(df, unique_cols, new_col_name='problematic_cols'):
     """
     Identify columns that differ between the rows for a given combination of identifiers.
-
+    
     Parameters:
     df (DataFrame): Input DataFrame
-    unique_cols (list of str): Columns that should uniquely identify a row
+    unique_cols (list of str or str): Columns that should uniquely identify a row
     new_col_name (str, optional): Name of the new column to be added. Default is 'problematic_cols'.
-
+    
     Returns:
     DataFrame: DataFrame with an additional column, containing a list of columns preventing the row from being labeled a duplicate.
+    
+    Example:
+    >>> df = pd.DataFrame({'ID': [1, 1], 'Name': ['Alice', 'Alice'], 'Age': [25, np.nan]})
+    >>> how_is_this_not_a_duplicate(df, unique_cols='ID')
     """
+    
+    # Make sure unique_cols is a list
+    if not isinstance(unique_cols, list):
+        unique_cols = [unique_cols]
+    
     df = df.sort_values(by=unique_cols)
     df_unique_cols_no_nan = df[unique_cols].fillna('')
 
@@ -257,10 +265,21 @@ def how_is_this_not_a_duplicate(df, unique_cols, new_col_name='problematic_cols'
         other_rows = other_rows[other_rows.index != idx]
         
         if not other_rows.empty:
-            cols_diff = ', '.join(col for col in df.columns if row[col] != other_rows[col].iloc[0])
+            # Check if a column has differing values, considering NaN to be the same as NaN
+            cols_diff = ', '.join(
+                col for col in df.columns 
+                if not pd.isna(row[col]) and not pd.isna(other_rows[col].iloc[0]) and row[col] != other_rows[col].iloc[0]
+                or pd.isna(row[col]) and not pd.isna(other_rows[col].iloc[0])
+                or not pd.isna(row[col]) and pd.isna(other_rows[col].iloc[0])
+            )
             result_df.at[idx, new_col_name] = cols_diff
     
     return result_df
+
+# %% Test Updated Function
+# Testing the updated function on the sample DataFrame
+result_df_updated = how_is_this_not_a_duplicate(df, unique_cols=['ID', 'Name'])
+result_df_updated
 
 
 
