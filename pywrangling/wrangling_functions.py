@@ -239,7 +239,7 @@ def how_is_this_not_a_duplicate(df, unique_cols, new_col_name='problematic_cols'
     
     Example:
     >>> df = pd.DataFrame({'ID': [1, 1], 'Name': ['Alice', 'Alice'], 'Age': [25, np.nan]})
-    >>> how_is_this_not_a_duplicate_overwrite(df, unique_cols='ID')
+    >>> how_is_this_not_a_duplicate(df, unique_cols='ID')
     """
     
     # Make sure unique_cols is a list
