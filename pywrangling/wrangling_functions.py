@@ -231,7 +231,7 @@ def replace(df, column, new_value, condition):
 
 
 
-def how_is_this_not_a_duplicate(df, unique_cols, new_col_name='problematic_cols'):
+def how_is_this_not_a_duplicate_overwrite(df, unique_cols, new_col_name='problematic_cols'):
     """
     Identify columns that differ between the rows for a given combination of identifiers.
     Overwrites the existing problematic_cols column if it exists.
