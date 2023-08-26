@@ -183,8 +183,6 @@ def replace(df, column, new_value, condition):
     
     # Making a deep copy of the DataFrame to ensure the original DataFrame remains unchanged
     df = df.copy()
-    df.sort_values(by=['person_id'], inplace=True)  # Sort by person_id for correct shifting
-    df.reset_index(drop=True, inplace=True)
 
     # Function to translate 'n' notation to shifted column names
     def translate_n_to_shifted_col_names(condition):
