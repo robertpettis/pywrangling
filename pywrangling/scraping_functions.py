@@ -17,9 +17,12 @@ from selenium.webdriver.common.alert import Alert #Handling some alert errors
 from selenium.common.exceptions import NoAlertPresentException
 from selenium.common.exceptions import TimeoutException
 
-import boto3 
+
 import pandas as pd
 import warnings
+import random
+
+
 
 def find_and_highlight(element):
     """
@@ -64,9 +67,6 @@ def find_and_highlight(element):
 
     # Return the element
     return element
-
-
-
 
 
 
@@ -143,12 +143,46 @@ def enter_credentials(driver, username, password,
     
     
     
+def get_ids(driver, modify_page=False, return_df=True):
+    # Initialize an empty dataframe to store the IDs and colors
+    df = pd.DataFrame(columns=['ID', 'Color'])
     
+    # Get all elements that have an 'id' attribute
+    elements_with_ids = driver.find_elements(By.XPATH, "//*[@id]")
     
+    # Create a list to store element IDs
+    element_ids = []
     
+    # Loop to get element IDs
+    for element in elements_with_ids:
+        element_ids.append(element.get_attribute('id'))
     
+    # Loop through IDs to either modify the page, generate a DataFrame, or both
+    for element_id in element_ids:
+        random_color = "#{:06x}".format(random.randint(0, 0xFFFFFF))  # Generate a random color in hex format
+        
+        if return_df:
+            # Append the ID and color to the DataFrame
+            df = pd.concat([df, pd.DataFrame({'ID': [element_id], 'Color': [random_color]})], ignore_index=True)
+        
+        if modify_page:
+            # Inject JavaScript to modify the page
+            js_code = f"""
+                var elem = document.getElementById('{element_id}');
+                if (elem) {{
+                    elem.innerHTML += '<div style="font-size: 24px; z-index: 9999;">ID = {element_id}</div>';
+                    elem.style.backgroundColor = '{random_color}';
+                }}
+            """
+            driver.execute_script(js_code)
     
-    
+    if return_df:
+        return df
+
+
+
+
+
     
     
     
