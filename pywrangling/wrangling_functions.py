@@ -369,33 +369,59 @@ def count_occurrences_with_offset(df, column, string_to_find, offset=1, inplace=
 
 
 
+
 def proper_case(df, column):
     """
     Convert the given pandas DataFrame column to proper case.
-
+    
     Parameters:
     df (pandas.DataFrame): DataFrame containing the column to convert
     column (str): The column name to convert
-
+    
     Returns:
     pandas.DataFrame: The DataFrame with the converted column
-
+    
     Usage:
-    >>> df = pd.DataFrame({"name": ["JASON'S HaT"]})
+    >>> df = pd.DataFrame({"name": ["JASON'S HaT", None, "ANOTHER EXAMPLE"]})
     >>> proper_case(df, 'name')
-           name
-    0  Jason's Hat
+                 name
+    0      Jason's Hat
+    1             None
+    2  Another Example
     """
-    df[column] = df[column].apply(lambda x: re.sub(r"(\b\w+)", lambda m: m.group(1).capitalize(), str(x)))
+    def capitalize(text):
+        words = text.split()
+        new_words = []
+        for word in words:
+            word = word.lower()  # Convert to lowercase
+            word = word.capitalize()  # Capitalize the first letter
+            word = re.sub(r"('\w)", lambda m: m.group(1).lower(), word)  # Correct the internal apostrophe
+            new_words.append(word)
+        return ' '.join(new_words)
+    
+    # Apply the capitalize function to each cell in the DataFrame column
+    df[column] = df[column].apply(lambda x: capitalize(str(x)) if pd.notna(x) else x)
     return df
 
 
 
 
 
+# %% Custom Functions
+def df_slice(df, start_pct, end_pct):
+    """
+    Get a slice of a DataFrame based on a percentage range.
+    
+    Parameters:
+    - df (DataFrame): The DataFrame to slice.
+    - start_pct (float): The starting percentage of the DataFrame slice.
+    - end_pct (float): The ending percentage of the DataFrame slice.
 
-
-
-
-
-
+    Returns:
+    - DataFrame: A DataFrame slice based on the percentage range.
+    """
+    total_length = len(df)
+    start_index = int(total_length * start_pct)
+    end_index = int(total_length * end_pct)
+    print(f"Dataframe sliced to start at {start_index} and end at {end_index}.")
+    return df.iloc[start_index:end_index]
