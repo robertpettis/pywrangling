@@ -44,3 +44,9 @@ def send_email_or_text(subject, body, sender, recipients, password):
        smtp_server.sendmail(sender, recipients, msg.as_string())
     print("Message sent!")
 
+
+def testing_function():
+    """This funcion is used for testing purposes only.
+    """
+    print("This is a test function")
+    return None
