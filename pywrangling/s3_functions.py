@@ -11,6 +11,8 @@ import random  # Provides functions to generate random numbers
 import warnings  # Used to issue warning messages
 from tqdm import tqdm  # Progress bar library
 import pandas as pd 
+import tkinter as tk
+
 
 
 """The main use for this is to collect the names of files already crawled so that an inturrupted crawl doesnt start from scratch."""
@@ -131,7 +133,49 @@ def download_files_from_s3(s3_client, bucket_name, subfolder_path, extensions, s
 
 
 
+def get_aws_credentials():
+    """
+    Create a GUI window to get AWS access and secret keys from the user.
 
+    :return: aws_access_key (str), aws_secret_key (str)
+        The AWS access and secret keys entered by the user.
+
+    Example usage:
+    aws_access_key, aws_secret_key = get_aws_credentials()
+    print(f"AWS Access Key: {aws_access_key}\nAWS Secret Key: {aws_secret_key}")
+    """
+
+    # Creating main window
+    root = tk.Tk()
+    root.title("Enter AWS Credentials")
+
+    # Labels
+    tk.Label(root, text="Enter AWS Access Key:").grid(row=0)
+    tk.Label(root, text="Enter AWS Secret Key:").grid(row=1)
+
+    # Entry fields
+    access_key_entry = tk.Entry(root, show="*")
+    secret_key_entry = tk.Entry(root, show="*")
+    access_key_entry.grid(row=0, column=1)
+    secret_key_entry.grid(row=1, column=1)
+
+    # Dictionary to store values
+    aws_keys = {}
+
+    # Function to retrieve values and close window
+    def retrieve_values():
+        aws_keys['access_key'] = access_key_entry.get()
+        aws_keys['secret_key'] = secret_key_entry.get()
+        root.quit()
+
+    # Button to submit
+    tk.Button(root, text="Submit", command=retrieve_values).grid(row=2, columnspan=2)
+
+    # Start GUI loop
+    root.mainloop()
+    root.destroy()
+
+    return aws_keys['access_key'], aws_keys['secret_key']
 
 
 
