@@ -151,7 +151,7 @@ def get_aws_credentials():
 
     # Labels
     tk.Label(root, text="Enter AWS Access Key:").grid(row=0)
-    tk.Label(root, text="Enter AWS Secret Key:").grid(row=1)
+    tk.Label(root, text="Enter AWS Secret Access Key:").grid(row=1)
 
     # Entry fields
     access_key_entry = tk.Entry(root, show="*")
