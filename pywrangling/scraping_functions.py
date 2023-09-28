@@ -186,29 +186,33 @@ def get_ids(driver, modify_page=False, return_df=True):
     
     
    
-if 'driver' not in globals():
-   driver = "placeholder"   
+
+def find_element_by_text(text, driver=None, element_type='*', wait_time=10):
+    """
+    Finds a web element by its visible text using Selenium.
     
-def find_element_by_text(text, driver=driver,  element_type='*', wait_time=10):
-  """
-  Finds a web element by its visible text using Selenium.
-  
-  Parameters:
-  - driver (selenium.webdriver): The Selenium WebDriver instance.
-  - text (str): The visible text to search for.
-  - element_type (str, optional): The type of the HTML element (e.g., 'a' for links, 'div' for divisions). Defaults to '*' (any element).
-  - wait_time (int, optional): Maximum time to wait for the element to become visible. Defaults to 10 seconds.
-  
-  Returns:
-  - selenium.webdriver.remote.webelement.WebElement: The web element found.
-  
-  Example usage:
-  >>> element = find_element_by_text(driver, "Click Me")
-  >>> element.click()
-  """
-  xpath = f"//{element_type}[text()='{text}']"
-  element = WebDriverWait(driver, wait_time).until(EC.presence_of_element_located((By.XPATH, xpath)))
-  return element  
+    Parameters:
+    - text (str): The visible text to search for.
+    - driver (selenium.webdriver, optional): The Selenium WebDriver instance. If not provided, will look for a global 'driver'.
+    - element_type (str, optional): The type of the HTML element (e.g., 'a' for links, 'div' for divisions). Defaults to '*' (any element).
+    - wait_time (int, optional): Maximum time to wait for the element to become visible. Defaults to 10 seconds.
+    
+    Returns:
+    - selenium.webdriver.remote.webelement.WebElement: The web element found.
+    
+    Example usage:
+    >>> element = find_element_by_text("Click Me")
+    >>> element.click()
+    """
+    if driver is None:
+        try:
+            driver = globals()['driver']
+        except KeyError:
+            raise ValueError("Driver is not initialized. Please initialize the Selenium WebDriver.")
+            
+    xpath = f"//{element_type}[text()='{text}']"
+    element = WebDriverWait(driver, wait_time).until(EC.presence_of_element_located((By.XPATH, xpath)))
+    return element
   
     
     
