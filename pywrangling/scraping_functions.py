@@ -223,6 +223,36 @@ def find_element_by_text(text, element_type='*', wait_time=10, contains=False, d
     
     
     
+# Similar to above function but returns a list of all elements. 
+def find_elements_by_text(text, element_type='*', wait_time=10, contains=False, driver=None):
+   """
+   Finds all web elements by their visible text using Selenium.
+   
+   Parameters:
+   - driver (selenium.webdriver): The Selenium WebDriver instance.
+   - text (str): The visible text to search for.
+   - element_type (str, optional): The type of the HTML element (e.g., 'a' for links, 'div' for divisions). Defaults to '*' (any element).
+   - wait_time (int, optional): Maximum time to wait for the element to become visible. Defaults to 10 seconds.
+   - contains (bool, optional): Whether to search for elements that contain the given text. Defaults to False.
+   
+   Returns:
+   - List[selenium.webdriver.remote.webelement.WebElement]: List of web elements found.
+   
+   Example usage:
+   >>> elements = find_elements_by_text(driver, "View Case", element_type='a')
+   >>> for element in elements:
+   >>>     element.click()
+   """
+   
+   if contains:
+       xpath = f"//{element_type}[contains(text(), '{text}')]"
+   else:
+       xpath = f"//{element_type}[text()='{text}']"
+       
+   elements = WebDriverWait(driver, wait_time).until(EC.presence_of_all_elements_located((By.XPATH, xpath)))
+   return elements        
+  
+    
     
 def find_element_by_placeholder(text, element_type='input', wait_time=10, contains=False, driver=None):
     """
