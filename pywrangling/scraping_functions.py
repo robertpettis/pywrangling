@@ -23,8 +23,7 @@ import warnings
 import random
 
 
-
-def find_and_highlight(element):
+def find_and_highlight(element, wait_time=10):
     """
     Highlights a web element on a webpage.
 
@@ -32,10 +31,11 @@ def find_and_highlight(element):
     The function assumes that the element is part of a Selenium WebDriver browser instance.
 
     Parameters:
-    element (selenium.webdriver.remote.webelement.WebElement): The web element to be highlighted.
+    - element (selenium.webdriver.remote.webelement.WebElement): The web element to be highlighted.
+    - wait_time (int, optional): Maximum time to wait for the element to become visible. Defaults to 10 seconds.
 
     Returns:
-    selenium.webdriver.remote.webelement.WebElement: The same web element that was passed in.
+    - selenium.webdriver.remote.webelement.WebElement: The same web element that was passed in.
 
     Example:
     from selenium import webdriver
@@ -46,9 +46,11 @@ def find_and_highlight(element):
     elem = driver.find_element(By.NAME, 'q')  # find the search box
     find_and_highlight(elem)  # highlight the search box
     """
-    # Get the parent browser instance
+    
+    # Wait until the element is present and visible
     browser = element._parent
-
+    WebDriverWait(browser, wait_time).until(EC.visibility_of(element))
+    
     # Define a function to apply a style to the element
     def apply_style(s):
         browser.execute_script("arguments[0].setAttribute('style', arguments[1]);", element, s)
