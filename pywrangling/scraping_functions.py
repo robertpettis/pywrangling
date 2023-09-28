@@ -216,4 +216,23 @@ def find_element_by_text(text, driver=None, element_type='*', wait_time=10):
   
     
     
+def find_element_by_placeholder(placeholder_text, driver, element_type='input', wait_time=10):
+    """
+    Finds a web element by its placeholder text using Selenium.
     
+    Parameters:
+    - placeholder_text (str): The placeholder text to search for.
+    - driver (selenium.webdriver): The Selenium WebDriver instance.
+    - element_type (str, optional): The type of the HTML element (usually 'input' for placeholders). Defaults to 'input'.
+    - wait_time (int, optional): Maximum time to wait for the element to become visible. Defaults to 10 seconds.
+    
+    Returns:
+    - selenium.webdriver.remote.webelement.WebElement: The web element found.
+    
+    Example usage:
+    >>> element = find_element_by_placeholder("Enter your name", driver)
+    >>> element.send_keys("John Doe")
+    """
+    xpath = f"//{element_type}[@placeholder='{placeholder_text}']"
+    element = WebDriverWait(driver, wait_time).until(EC.presence_of_element_located((By.XPATH, xpath)))
+    return element
