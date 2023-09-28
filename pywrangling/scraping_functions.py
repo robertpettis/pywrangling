@@ -185,10 +185,11 @@ def get_ids(driver, modify_page=False, return_df=True):
 
     
     
+   
+if 'driver' not in globals():
+   driver = "placeholder"   
     
-    
-    
-def find_element_by_text(driver, text, element_type='*', wait_time=10):
+def find_element_by_text(text, driver=driver,  element_type='*', wait_time=10):
   """
   Finds a web element by its visible text using Selenium.
   
