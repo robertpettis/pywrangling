@@ -187,7 +187,7 @@ def get_ids(driver, modify_page=False, return_df=True):
     
    
 
-def find_element_by_text(text, driver, element_type='*', wait_time=10, contains=False):
+def find_element_by_text(driver, text, element_type='*', wait_time=10, contains=False):
     """
     Finds a web element by its visible text using Selenium.
     
@@ -216,12 +216,12 @@ def find_element_by_text(text, driver, element_type='*', wait_time=10, contains=
     return element
     
     
-def find_element_by_placeholder(placeholder, driver=None, element_type='input', wait_time=10, contains=False):
+def find_element_by_placeholder(driver, text, element_type='input', wait_time=10, contains=False):
     """
     Finds a web element by its placeholder attribute using Selenium.
     
     Parameters:
-    - placeholder (str): The placeholder text to search for.
+    - text (str): The placeholder text to search for.
     - driver (selenium.webdriver, optional): The Selenium WebDriver instance.
     - element_type (str, optional): The type of the HTML element (e.g., 'input' for input fields). Defaults to 'input'.
     - wait_time (int, optional): Maximum time to wait for the element to become visible. Defaults to 10 seconds.
@@ -235,9 +235,9 @@ def find_element_by_placeholder(placeholder, driver=None, element_type='input', 
     >>> element.send_keys("John Doe")
     """
     if contains:
-        xpath = f"//{element_type}[contains(@placeholder, '{placeholder}')]"
+        xpath = f"//{element_type}[contains(@placeholder, '{text}')]"
     else:
-        xpath = f"//{element_type}[@placeholder='{placeholder}']"
+        xpath = f"//{element_type}[@placeholder='{text}']"
     
     if driver is None:
         try:
