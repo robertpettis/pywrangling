@@ -224,7 +224,7 @@ def find_element_by_text(text, element_type='*', wait_time=10, contains=False, d
     
     
     
-def find_element_by_placeholder(driver, text, element_type='input', wait_time=10, contains=False):
+def find_element_by_placeholder(text, element_type='input', wait_time=10, contains=False, driver=None):
     """
     Finds a web element by its placeholder attribute using Selenium.
     
