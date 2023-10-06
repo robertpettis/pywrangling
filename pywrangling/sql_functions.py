@@ -48,6 +48,7 @@ def map_dtype(dtype, column=None, df=None):
         else:
             return "NVARCHAR(255)"
 
+
 def generate_create_table_sql(table_name, df):
     """
     Generate SQL command for creating a new table.
@@ -63,5 +64,35 @@ def generate_create_table_sql(table_name, df):
     column_defs_str = ', '.join(column_defs)
     create_table_sql = f"CREATE TABLE `{table_name}` ({column_defs_str})"
     return create_table_sql
+
+
+
+
+
+# Function to generate SQL for batch insert
+def generate_batch_insert_sql(table_name, columns, num_rows):
+    columns_str = ', '.join([f"`{col}`" for col in columns])
+    values_str = ', '.join(['(' + ', '.join(['%s'] * len(columns)) + ')' for _ in range(num_rows)])
+    insert_sql = f"INSERT INTO {table_name} ({columns_str}) VALUES {values_str}"
+    return insert_sql
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
