@@ -1,29 +1,45 @@
 """
 These functions are designed to add utility to web scraping work.
 """
-import time
+# %% Importing Packages/Libraries
 
+# Standard Libraries
+import time  # Time-related functions
+import warnings  # Warnings control
+import random  # Generate random numbers
 
-# Selenium Packages
+# Data Manipulation Libraries
+import pandas as pd  # Data manipulation and analysis
+
+# Selenium Packages for WebDriver
 from selenium import webdriver  # Selenium WebDriver for browser automation
+
+# Selenium Packages for Options and Services
 from selenium.webdriver.chrome.options import Options  # Chrome options for customization
+from selenium.webdriver.chrome.service import Service  # ChromeDriver service
+
+# Selenium Packages for Element Location
 from selenium.webdriver.common.by import By  # Locating elements using different strategies
+
+# Selenium Packages for Waiting and Expected Conditions
 from selenium.webdriver.support.ui import WebDriverWait  # Waiting for elements to load
 from selenium.webdriver.support import expected_conditions as EC  # Expected conditions for waiting
+
+# Selenium Packages for Keyboard Actions
 from selenium.webdriver.common.keys import Keys  # Keys for keyboard actions
+
+# Selenium Packages for Exception Handling
 from selenium.common.exceptions import NoSuchElementException  # Exception for element not found
-from selenium.webdriver.chrome.service import Service  # ChromeDriver service
-from selenium.webdriver.common.alert import Alert #Handling some alert errors
-from selenium.common.exceptions import NoAlertPresentException
-from selenium.common.exceptions import TimeoutException
+from selenium.common.exceptions import NoAlertPresentException  # Exception for no alert present
+from selenium.common.exceptions import TimeoutException  # Exception for timeout
+
+# Selenium Packages for Alerts
+from selenium.webdriver.common.alert import Alert  # Handling some alert errors
 
 
-import pandas as pd
-import warnings
-import random
+# %% Functions
 
-
-def find_and_highlight(element, wait_time=10):
+def find_and_highlight(element, wait_time=10, background_color="yellow", border_color="red"):
     """
     Highlights a web element on a webpage.
 
@@ -33,18 +49,23 @@ def find_and_highlight(element, wait_time=10):
     Parameters:
     - element (selenium.webdriver.remote.webelement.WebElement): The web element to be highlighted.
     - wait_time (int, optional): Maximum time to wait for the element to become visible. Defaults to 10 seconds.
+    - background_color (str, optional): The background color to use for highlighting. Defaults to yellow.
+    - border_color (str, optional): The border color to use for highlighting. Defaults to red.
 
     Returns:
     - selenium.webdriver.remote.webelement.WebElement: The same web element that was passed in.
 
     Example:
+    ```python
     from selenium import webdriver
     from selenium.webdriver.common.by import By
 
-    driver = webdriver.Firefox()
+    chromepath = "C:\\Users\\YourUsername\\path\\to\\chromedriver.exe"
+    driver = initialize_browser(chromepath)
     driver.get('http://www.python.org')
     elem = driver.find_element(By.NAME, 'q')  # find the search box
-    find_and_highlight(elem)  # highlight the search box
+    find_and_highlight(elem, background_color="green", border_color="blue")  # highlight the search box with custom colors
+    ```
     """
     
     # Wait until the element is present and visible
@@ -59,7 +80,8 @@ def find_and_highlight(element, wait_time=10):
     original_style = element.get_attribute('style')
 
     # Apply the highlight style
-    apply_style("background: yellow; border: 2px solid red;")
+    highlight_style = f"background: {background_color}; border: 2px solid {border_color};"
+    apply_style(highlight_style)
 
     # Pause for a moment to let the highlight be seen
     time.sleep(.3)
@@ -73,17 +95,44 @@ def find_and_highlight(element, wait_time=10):
 
 
 
-# Initialize a browser with basic settings
-def initialize_browser(chromepath):
+# Initialize a browser
+def initialize_browser(chromepath, additional_options=None):
+    """
+    Initialize a Selenium WebDriver Chrome browser with specified options.
+    
+    Parameters:
+    - chromepath (str): The file path to the ChromeDriver executable.
+    - additional_options (list, optional): A list of additional Chrome options to set.
+    
+    Returns:
+    - driver (webdriver.Chrome): An instance of Chrome WebDriver.
+    
+    Usage Example:
+    ```python
+    chromepath = "C:\\Users\\YourUsername\\path\\to\\chromedriver.exe"
+    additional_options = ["--disable-extensions", "--headless"]
+    driver = initialize_browser(chromepath, additional_options)
+    driver.get("https://www.google.com")
+    ```
+    """
     # Set Chrome options for full screen
     chrome_options = Options()
     chrome_options.add_argument("--start-maximized")
     
+    # Add any additional Chrome options if provided
+    if additional_options:
+        for option in additional_options:
+            chrome_options.add_argument(option)
+    
     # Provide the path to the chromedriver executable
     service = Service(executable_path=chromepath)
-    driver = webdriver.Chrome(service=service,options=chrome_options)
+    
+    # Initialize the Selenium WebDriver with Chrome
+    driver = webdriver.Chrome(service=service, options=chrome_options)
     
     return driver
+
+
 
 
 # A basic credential entering code. 
