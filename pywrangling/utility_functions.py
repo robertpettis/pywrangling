@@ -6,10 +6,14 @@ Author: Robert Pettis
 """
 
 
+
+# %% Importing required libraries
+import sys  # Library for system-specific parameters and functions
 import smtplib
 from email.mime.text import MIMEText
 
 
+# %% Functions
 
 def send_email_or_text(subject, body, sender, recipients, password):
     """   
@@ -50,3 +54,63 @@ def testing_function():
     """
     print("This is a test function")
     return None
+
+
+
+# %% Define the function to fetch command line arguments or default values
+def fetch_arguments(default_values):
+    """
+    Fetch command-line arguments if available; otherwise, use default values.
+    
+    Parameters:
+    - default_values (list): List of default values to use if no command-line arguments are provided.
+    
+    Returns:
+    - arguments (list): List of arguments fetched from the command-line or default values.
+    
+    Usage example:
+    ```python
+    default_values = ['default_server', 'default_db', 'default_user']
+    args = fetch_arguments(default_values)
+    server, db, user = args
+    ```
+    """
+    # Get the number of command-line arguments
+    num_args = len(sys.argv) - 1
+    
+    # Check if command-line arguments are available
+    if num_args > 0:
+        # Fetch command-line arguments
+        arguments = sys.argv[1:num_args+1]
+    else:
+        # Use default values if command-line arguments are not available
+        arguments = default_values
+    
+    return arguments
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
