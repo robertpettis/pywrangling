@@ -11,6 +11,8 @@ Author: Robert Pettis
 import sys  # Library for system-specific parameters and functions
 import smtplib
 from email.mime.text import MIMEText
+import xml.etree.ElementTree as ET  # XML parsing library
+import pandas as pd  # Data analysis and manipulation tool
 
 
 # %% Functions
@@ -59,7 +61,7 @@ def testing_function():
 
 # %% Define the function to fetch command line arguments or default values
 def fetch_arguments(default_values):
-    """
+    r"""
     Fetch command-line arguments if available; otherwise, use default values.
     
     Parameters:
@@ -69,11 +71,10 @@ def fetch_arguments(default_values):
     - arguments (list): List of arguments fetched from the command-line or default values.
     
     Usage example:
-    ```python
-    default_values = ['default_server', 'default_db', 'default_user']
-    args = fetch_arguments(default_values)
-    server, db, user = args
-    ```
+    default_values - [r'C:\Users\pettisr\Desktop\Scramento\Data', 'default_db','default_user']
+    args = uf.fetch_arguments(default_values)
+    wd, db, user = args
+
     """
     # Get the number of command-line arguments
     num_args = len(sys.argv) - 1
@@ -93,6 +94,52 @@ def fetch_arguments(default_values):
 
 
 
+# %% Convert XML to a dataframe
+
+# I imagine different structures may not work, but this is a start. I won't 
+# Advertise this in the readme though. 
+
+def xml_file_to_dataframe(file_path):
+    """
+    Convert any XML file to a pandas DataFrame.
+
+    Parameters:
+    - file_path (str): The path to the XML file.
+
+    Returns:
+    - df (DataFrame): The resulting pandas DataFrame.
+    """
+
+    # Parse the XML file
+    tree = ET.parse(file_path)
+    root = tree.getroot()
+
+    # Assuming that all children of the root have the same structure,
+    # get the list of attribute names (columns) from the first grandchild
+    if len(root) == 0 or len(root[0]) == 0:
+        return pd.DataFrame()  # Return an empty DataFrame if there are no children or grandchildren
+
+    columns = list(root[0][0].attrib.keys())
+
+    # Extract data from the XML
+    data = []
+    for child in root:
+        for grandchild in child:
+            row_data = []
+            for col in columns:
+                value = grandchild.get(col)
+                # Try to convert the value to an integer, if not leave it as is
+                try:
+                    value = int(value)
+                except (ValueError, TypeError):
+                    pass
+                row_data.append(value)
+            data.append(row_data)
+
+    # Convert the data to a pandas DataFrame
+    df = pd.DataFrame(data, columns=columns)
+
+    return df
 
 
 
