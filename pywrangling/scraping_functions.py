@@ -95,13 +95,50 @@ def find_and_highlight(element, wait_time=10, background_color="yellow", border_
 
 
 
-# Initialize a browser
-def initialize_browser(chromepath, additional_options=None):
+# # Initialize a browser
+# def initialize_browser(chromepath, additional_options=None):
+#     """
+#     Initialize a Selenium WebDriver Chrome browser with specified options.
+    
+#     Parameters:
+#     - chromepath (str): The file path to the ChromeDriver executable.
+#     - additional_options (list, optional): A list of additional Chrome options to set.
+    
+#     Returns:
+#     - driver (webdriver.Chrome): An instance of Chrome WebDriver.
+    
+#     Usage Example:
+#     ```python
+#     chromepath = "C:\\Users\\YourUsername\\path\\to\\chromedriver.exe"
+#     additional_options = ["--disable-extensions", "--headless"]
+#     driver = initialize_browser(chromepath, additional_options)
+#     driver.get("https://www.google.com")
+#     ```
+#     """
+#     # Set Chrome options for full screen
+#     chrome_options = Options()
+#     chrome_options.add_argument("--start-maximized")
+    
+#     # Add any additional Chrome options if provided
+#     if additional_options:
+#         for option in additional_options:
+#             chrome_options.add_argument(option)
+    
+#     # Provide the path to the chromedriver executable
+#     service = Service(executable_path=chromepath)
+    
+#     # Initialize the Selenium WebDriver with Chrome
+#     driver = webdriver.Chrome(service=service, options=chrome_options)
+    
+#     return driver
+
+def initialize_browser(chromepath, extension_path=None, additional_options=None):
     """
     Initialize a Selenium WebDriver Chrome browser with specified options.
     
     Parameters:
     - chromepath (str): The file path to the ChromeDriver executable.
+    - extension_path (str, optional): The file path to the Chrome extension (.crx file).
     - additional_options (list, optional): A list of additional Chrome options to set.
     
     Returns:
@@ -111,13 +148,18 @@ def initialize_browser(chromepath, additional_options=None):
     ```python
     chromepath = "C:\\Users\\YourUsername\\path\\to\\chromedriver.exe"
     additional_options = ["--disable-extensions", "--headless"]
-    driver = initialize_browser(chromepath, additional_options)
+    extension_path = "./exampleOfExtensionDownloadedToFolder.crx"
+    driver = initialize_browser(chromepath, extension_path, additional_options)
     driver.get("https://www.google.com")
     ```
     """
     # Set Chrome options for full screen
     chrome_options = Options()
     chrome_options.add_argument("--start-maximized")
+    
+    # Add Chrome extension if provided
+    if extension_path:
+        chrome_options.add_extension(extension_path)
     
     # Add any additional Chrome options if provided
     if additional_options:
@@ -128,11 +170,9 @@ def initialize_browser(chromepath, additional_options=None):
     service = Service(executable_path=chromepath)
     
     # Initialize the Selenium WebDriver with Chrome
-    driver = webdriver.Chrome(service=service, options=chrome_options)
+    driver = webdriver(service=service, options=chrome_options)
     
     return driver
-
-
 
 
 # A basic credential entering code. 
