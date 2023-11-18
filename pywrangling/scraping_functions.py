@@ -97,7 +97,7 @@ def find_and_highlight(element, wait_time=10, background_color="yellow", border_
 
 
 # %%
-def initialize_browser(chromepath, extension_path=None, additional_options=None):
+def initialize_browser(chromepath, extension_path=None, additional_options=None, experimental_options=None):
     """
     Initialize a Selenium WebDriver Chrome browser with specified options.
     
@@ -105,22 +105,25 @@ def initialize_browser(chromepath, extension_path=None, additional_options=None)
     - chromepath (str): The file path to the ChromeDriver executable.
     - extension_path (str, optional): The file path to the Chrome extension (.crx file).
     - additional_options (list, optional): A list of additional Chrome options to set.
+    - experimental_options (dict, optional): A dictionary of experimental options to set.
     
     Returns:
     - driver (Chrome): An instance of Chrome WebDriver.
     
     Usage Example:
+    ```python
     chromepath = "C:\\Users\\YourUsername\\path\\to\\chromedriver.exe"
     additional_options = ["--disable-extensions", "--headless"]
+    experimental_options = {"detach": True}
     extension_path = "./exampleOfExtensionDownloadedToFolder.crx"
-    driver = initialize_browser(chromepath, extension_path, additional_options)
+    driver = initialize_browser(chromepath, extension_path, additional_options, experimental_options)
     driver.get("https://www.google.com")
-
+    ```
     """
-    # Set Chrome options for full screen
+    # Set Chrome options
     chrome_options = Options()
     chrome_options.add_argument("--start-maximized")
-    
+
     # Add Chrome extension if provided
     if extension_path:
         chrome_options.add_extension(extension_path)
@@ -129,6 +132,11 @@ def initialize_browser(chromepath, extension_path=None, additional_options=None)
     if additional_options:
         for option in additional_options:
             chrome_options.add_argument(option)
+
+    # Add experimental options if provided
+    if experimental_options:
+        for key, value in experimental_options.items():
+            chrome_options.add_experimental_option(key, value)
     
     # Provide the path to the chromedriver executable
     service = Service(executable_path=chromepath)
