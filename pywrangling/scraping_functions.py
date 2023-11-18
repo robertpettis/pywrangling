@@ -38,7 +38,7 @@ from selenium.common.exceptions import TimeoutException  # Exception for timeout
 # Selenium Packages for Alerts
 from selenium.webdriver.common.alert import Alert  # Handling some alert errors
 
-
+from selenium.webdriver.support.ui import Select
 # %% Functions
 
 def find_and_highlight(element, wait_time=10, background_color="yellow", border_color="red"):
@@ -359,7 +359,38 @@ def find_element_by_placeholder(text, element_type='input', wait_time=10, contai
 
 
 
+def select_from_dropdown(driver, dropdown_id, value, attribute=None, attribute_value=None):
+    """
+    Selects an option from a dropdown based on the visible text or an attribute.
 
+    Parameters:
+    - driver (selenium.webdriver): The WebDriver instance.
+    - dropdown_id (str): The ID of the dropdown element.
+    - value (str): The visible text of the option to be selected.
+    - attribute (str, optional): An additional attribute to match on the option.
+    - attribute_value (str, optional): The value of the additional attribute to match.
+
+    Returns:
+    - bool: True if selection is successful, False otherwise.
+
+    Example usage:
+    >>> select_from_dropdown(driver, "cboHSHearingTypeGroup", "Criminal", "parent", "All Superior Court")
+    """
+    try:
+        dropdown = driver.find_element(By.ID, dropdown_id)
+        if attribute and attribute_value:
+            options = dropdown.find_elements(By.TAG_NAME, "option")
+            for option in options:
+                if option.get_attribute("value") == value and option.get_attribute(attribute) == attribute_value:
+                    option.click()
+                    return True
+        else:
+            select = Select(dropdown)
+            select.select_by_visible_text(value)
+            return True
+    except Exception as e:
+        print(f"An error occurred while selecting from the dropdown: {e}")
+        return False
 
 
 
