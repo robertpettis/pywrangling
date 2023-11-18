@@ -96,7 +96,7 @@ def find_and_highlight(element, wait_time=10, background_color="yellow", border_
 
 
 
-
+# %%
 def initialize_browser(chromepath, extension_path=None, additional_options=None):
     """
     Initialize a Selenium WebDriver Chrome browser with specified options.
@@ -110,13 +110,12 @@ def initialize_browser(chromepath, extension_path=None, additional_options=None)
     - driver (Chrome): An instance of Chrome WebDriver.
     
     Usage Example:
-    ```python
     chromepath = "C:\\Users\\YourUsername\\path\\to\\chromedriver.exe"
     additional_options = ["--disable-extensions", "--headless"]
     extension_path = "./exampleOfExtensionDownloadedToFolder.crx"
     driver = initialize_browser(chromepath, extension_path, additional_options)
     driver.get("https://www.google.com")
-    ```
+
     """
     # Set Chrome options for full screen
     chrome_options = Options()
@@ -139,7 +138,15 @@ def initialize_browser(chromepath, extension_path=None, additional_options=None)
     
     return driver
 
-# A basic credential entering code. 
+
+
+
+
+
+
+
+
+# %% A basic credential entering code. 
 def enter_credentials(driver, username, password, 
                       username_locator_type, username_locator_value, 
                       password_locator_type, password_locator_value,
@@ -197,7 +204,7 @@ def enter_credentials(driver, username, password,
 
     
     
-    
+  # %%  
 def get_ids(driver, modify_page=False, return_df=True):
     # Initialize an empty dataframe to store the IDs and colors
     df = pd.DataFrame(columns=['ID', 'Color'])
