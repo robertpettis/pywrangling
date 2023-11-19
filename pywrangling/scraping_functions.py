@@ -33,7 +33,7 @@ from selenium.webdriver.common.keys import Keys  # Keys for keyboard actions
 # Selenium Packages for Exception Handling
 from selenium.common.exceptions import NoSuchElementException  # Exception for element not found
 from selenium.common.exceptions import NoAlertPresentException  # Exception for no alert present
-from selenium.common.exceptions import TimeoutException  # Exception for timeout
+from selenium.common.exceptions import ElementClickInterceptedException, TimeoutException, StaleElementReferenceException
 
 # Selenium Packages for Alerts
 from selenium.webdriver.common.alert import Alert  # Handling some alert errors
@@ -398,7 +398,16 @@ def select_from_dropdown(driver, dropdown_id, value, attribute=None, attribute_v
 
 
 
-
+def click_with_retry(element, max_attempts=20, wait=1):
+    attempts = 0
+    while attempts < max_attempts:
+        try:
+            element.click()
+            return True  # Click successful
+        except ElementClickInterceptedException:
+            time.sleep(wait)  # Wait before retrying
+            attempts += 1
+    return False  # Click failed after retries
 
 
 
