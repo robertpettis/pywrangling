@@ -125,7 +125,41 @@ def download_files_from_s3(s3_client, bucket_name, subfolder_path, extensions, s
     return downloaded_files
 
 
+def download_file_from_s3(s3_instance, bucket_name, subfolder_path, file_name, destination_directory):
+    """
+    Download a file from an S3 bucket to a specified local directory.
 
+    Parameters:
+    s3_instance (boto3.client): An instance of boto3 S3 client.
+    bucket_name (str): Name of the S3 bucket.
+    subfolder_path (str): Path of the subfolder inside the bucket.
+    file_name (str): Name of the file to be downloaded.
+    destination_directory (str): Local directory to which the file will be downloaded.
+
+    Returns:
+    str: Path of the downloaded file or an error message.
+
+    Example:
+    s3 = boto3.client('s3')
+    download_file_from_s3(s3, 'mybucket', 'data/subfolder', 'myfile.csv', '/local/path')
+    """
+
+    # Check for missing values
+    if not all([bucket_name, subfolder_path, file_name, destination_directory]):
+        return "Missing one or more required parameters."
+
+    # Construct the full file path in the S3 bucket
+    full_file_path = os.path.join(subfolder_path, file_name)
+
+    # Construct the full path for the destination file
+    destination_file_path = os.path.join(destination_directory, file_name)
+
+    try:
+        # Download the file
+        s3_instance.download_file(bucket_name, full_file_path, destination_file_path)
+        return destination_file_path
+    except Exception as e:
+        return f"An error occurred: {e}"
 
 
 
@@ -181,6 +215,37 @@ def get_aws_credentials():
 
 
 
+
+def s3_filter_processed_files(dataframe, s3_client, paginator, filename_col, bucket, subdirectory):
+    """
+    Drops rows from the DataFrame where the filename already exists in the S3 bucket.
+
+    Parameters:
+    - dataframe (pandas.DataFrame): DataFrame containing the filenames.
+    - filename_col (str): Name of the column in the DataFrame that contains the filenames.
+    - bucket (str): The name of the S3 bucket.
+    - subdirectory (str): The subdirectory in the S3 bucket.
+
+    Returns:
+    - pandas.DataFrame: The filtered DataFrame.
+
+    Example usage:
+    filtered_df = filter_processed_files(df, 'FILENAME', 'my-bucket', 'my/subdirectory')
+    """
+
+    prefix = f"{subdirectory}/" if subdirectory else ""
+
+    # Set to store filenames found in S3
+    existing_files = set()
+
+    # Iterate over pages of objects in S3
+    for page in paginator.paginate(Bucket=bucket, Prefix=prefix):
+        for obj in page.get('Contents', []):
+            filename = obj['Key'].split('/')[-1]
+            existing_files.add(filename)
+
+    # Drop rows where the filename exists in S3
+    return dataframe[~dataframe[filename_col].isin(existing_files)]
 
 
 
