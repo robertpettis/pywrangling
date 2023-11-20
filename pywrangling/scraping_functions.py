@@ -397,7 +397,8 @@ def select_from_dropdown(driver, dropdown_id, value, attribute=None, attribute_v
 
 
 
-
+# Sometimes clicks get intercepted because there is an element over it, making it unclickable. 
+# In the case that this is a loading screen, this attempts to keep trying until it can click it
 def click_with_retry(element, max_attempts=20, wait=1):
     attempts = 0
     while attempts < max_attempts:
