@@ -13,7 +13,7 @@ import smtplib
 from email.mime.text import MIMEText
 import xml.etree.ElementTree as ET  # XML parsing library
 import pandas as pd  # Data analysis and manipulation tool
-
+import os
 
 # %% Functions
 
@@ -150,8 +150,30 @@ def xml_file_to_dataframe(file_path):
 
 
 
+# Main goal of this is to load in passwords and usernames from text files, but probably has other uses. 
+def load_file_content(file_path):
+    """
+    Load the contents of a text file into a Python variable.
 
+    Parameters:
+    file_path (str): The path to the text file.
 
+    Returns:
+    str: The content of the file.
+
+    Example usage:
+    content = load_file_content('path/to/file.txt')
+    """
+
+    # Check if the file exists
+    if not os.path.exists(file_path):
+        raise FileNotFoundError(f"The file {file_path} does not exist.")
+
+    # Open and read the content of the file
+    with open(file_path, 'r') as file:
+        content = file.read()
+
+    return content
 
 
 
