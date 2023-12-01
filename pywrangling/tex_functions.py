@@ -134,6 +134,171 @@ def process_tex_files(folder_path):
             print(f"Processed {filename}")
 
 
+def value_counts_to_latex(value_counts, column_name, order=None, caption="Value Counts", label=None, note=None):
+    """
+    Generate LaTeX table from pandas value_counts().
+
+    Parameters
+    ----------
+    value_counts : pandas.Series
+        Value counts, usually from pandas value_counts() method.
+    column_name : str
+        Name of the column represented by value_counts.
+    order : list, optional
+        Ordering of the index values. Default is None.
+    caption : str, optional
+        Caption for the table. Default is "Value Counts".
+    label : str, optional
+        Label for the table. Default is None.
+    note : str, optional
+        Note for the table. Default is None.
+
+    Returns
+    -------
+    str
+        LaTeX table.
+
+    Examples
+    --------
+    >>> df['column'].value_counts().pipe(value_counts_to_latex, 'column')
+    """
+    # Order value_counts if order list is provided
+    if order is not None:
+        value_counts = value_counts.reindex(order, fill_value=0)
+
+    table = "\\begin{table}[H]\n"
+    table += "\\caption{" + caption + "}\n"
+    if label:
+        table += "\\label{" + label + "}\n"
+    table += "\\begin{center}\n"
+    table += "\\begin{minipage}{0.5\\linewidth}\n"  # Begin a minipage
+    table += "\\centering\n"
+    table += "\\begin{tabular}{l|c}\n"
+    table += "\\hline\n"
+    table += f"\\textbf{{{column_name}}} & \\textbf{{Count}}\\\\\\hline\\hline\n"
+    
+    for index, count in value_counts.items():
+        formatted_count = format(int(count), ',')
+        table += f"{index} & {formatted_count}\\\\\n"
+    
+    table += "\\hline\n"
+    table += "\\end{tabular}\n"
+
+    if note:
+        table += "\\vspace{.2cm}\n"
+        table += "\\begin{tabular}{@{}p{0.9\\linewidth}@{}}\n"  # Begin a full-width single-column table
+        table += "\\small " + note + "\n"
+        table += "\\vspace{.1cm}\n"
+        table += "\\end{tabular}\n"  # End the full-width single-column table
+
+    table += "\\end{minipage}\n"  # End minipage
+    table += "\\end{center}\n"
+    table += "\\end{table}\n"
+    
+    return table
+
+
+
+
+
+
+
+def crosstab_to_latex(crosstab, caption="Crosstab", label=None, note=None):
+    table = "\\begin{table}[H]\n"
+    table += "\\caption{" + caption + "}\n"
+    if label:
+        table += "\\label{" + label + "}\n"
+    table += "\\begin{center}\n"
+    table += "\\begin{tabular}{l|" + "c" * len(crosstab.columns) + "}\n"
+    
+    # Header
+    table += "\\hline\n"
+    table += "\\textbf{}"
+    for column in crosstab.columns:
+        table += f" & \\textbf{{{column}}}"
+    table += "\\\\\\hline\\hline\n"
+    
+    # Rows
+    for index, row in crosstab.iterrows():
+        table += f"\\textbf{{{index}}}"
+        for value in row:
+            formatted_value = format(value, ',')
+            table += f" & {formatted_value}"
+        table += "\\\\\n"
+    
+    table += "\\hline\n"
+    table += "\\end{tabular}\n"
+    if note:
+        table += "\\begin{minipage}{10cm}\n"
+        table += "\\vspace{.2cm}\n"
+        table += "\\small " + note + "\n"
+        table += "\\vspace{.1cm}\n"
+        table += "\\end{minipage}\n"
+    table += "\\end{center}\n"
+    table += "\\end{table}\n"
+    
+    return table
+
+
+
+def value_count_percentages(data_counts):
+    total_count = 0
+    for count in data_counts.values():
+        total_count += count
+
+    value_percentages = {}
+    
+    for value, count in data_counts.items():
+        percentage = (count / total_count) * 100
+        value_percentages[value] = (count, percentage)
+
+    return value_percentages
+
+
+
+def panel_table(tables, caption, label, note=None):
+    """
+    Create a LaTeX panel table from a list of pandas DataFrames.
+
+    Parameters:
+    - tables (list): A list of dictionaries where the keys are the panel names and the values are pandas DataFrames.
+    - caption (str): The table caption.
+    - label (str): The table label.
+    - note (str, optional): A note to include at the bottom of the table.
+
+    Returns:
+    str: A string representing the LaTeX panel table.
+
+    Usage:
+    >>> tables = [{"Panel A: Ever Incarcerated": df1}, {"Panel B: County Jail": df2}]
+    >>> panel_table(tables, "Incarceration and Probation", "tab: incarcerated")
+    """
+    latex_table = r"\begin{table}[H]"
+    latex_table += f"\n\caption{{{caption}}}"
+    latex_table += f"\n\label{{{label}}}"
+    latex_table += "\n\\begin{center}"
+    latex_table += "\n\\begin{tabular}{ll}"
+    
+    for table_dict in tables:
+        for panel_name, df in table_dict.items():
+            latex_table += f"\n\hline \multicolumn{{2}}{{c}}{{{panel_name}}} \\ [0.5ex] \hline"
+            for index, row in df.iterrows():
+                latex_table += f"\n{index}\t&\t{row[0]} \\\\"
+            latex_table += "\n\hline"
+    
+    if note:
+        latex_table += "\n\\begin{minipage}{8cm}"
+        latex_table += "\n\vspace{.1cm}"
+        latex_table += f"\n\small {note}"
+        latex_table += "\n\vspace{.1cm}"
+        latex_table += "\n\end{minipage}"
+    
+    latex_table += "\n\end{center}"
+    latex_table += "\n\end{table}"
+    
+    return latex_table
+
+
 
 # Given folder path
 #folder_path = "D:\\Dropbox\\Placer DA\\Tables"
