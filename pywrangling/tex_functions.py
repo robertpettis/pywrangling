@@ -203,39 +203,42 @@ def value_counts_to_latex(value_counts, column_name, order=None, caption="Value 
 
 
 
-def crosstab_to_latex(crosstab, caption="Crosstab", label=None, note=None):
-    table = "\\begin{table}[H]\n"
-    table += "\\caption{" + caption + "}\n"
+def crosstab_to_latex(crosstab, caption="Crosstab", label=None, note=None, copy_mode=False):
+    # Determine the backslash character to use based on the mode
+    bs = "\\" if copy_mode else "\\\\"
+
+    table = f"{bs}begin{{table}}[H]\n"
+    table += f"{bs}caption{{{caption}}}\n"
     if label:
-        table += "\\label{" + label + "}\n"
-    table += "\\begin{center}\n"
-    table += "\\begin{tabular}{l|" + "c" * len(crosstab.columns) + "}\n"
+        table += f"{bs}label{{{label}}}\n"
+    table += f"{bs}begin{{center}}\n"
+    table += f"{bs}begin{{tabular}}{{l|{'c' * len(crosstab.columns)}}}\n"
     
     # Header
-    table += "\\hline\n"
-    table += "\\textbf{}"
+    table += f"{bs}hline\n"
+    table += f"{bs}textbf{{}}"
     for column in crosstab.columns:
-        table += f" & \\textbf{{{column}}}"
-    table += "\\\\\\hline\\hline\n"
+        table += f" & {bs}textbf{{{column}}}"
+    table += f"{bs}{bs}\n{bs}hline{bs}hline\n"
     
     # Rows
     for index, row in crosstab.iterrows():
-        table += f"\\textbf{{{index}}}"
+        table += f"{bs}textbf{{{index}}}"
         for value in row:
             formatted_value = format(value, ',')
             table += f" & {formatted_value}"
-        table += "\\\\\n"
+        table += f"{bs}{bs}\n"
     
-    table += "\\hline\n"
-    table += "\\end{tabular}\n"
+    table += f"{bs}hline\n"
+    table += f"{bs}end{{tabular}}\n"
     if note:
-        table += "\\begin{minipage}{10cm}\n"
-        table += "\\vspace{.2cm}\n"
-        table += "\\small " + note + "\n"
-        table += "\\vspace{.1cm}\n"
-        table += "\\end{minipage}\n"
-    table += "\\end{center}\n"
-    table += "\\end{table}\n"
+        table += f"{bs}begin{{minipage}}{{10cm}}\n"
+        table += f"{bs}vspace{{.2cm}}\n"
+        table += f"{bs}small {note}\n"
+        table += f"{bs}vspace{{.1cm}}\n"
+        table += f"{bs}end{{minipage}}\n"
+    table += f"{bs}end{{center}}\n"
+    table += f"{bs}end{{table}}\n"
     
     return table
 
