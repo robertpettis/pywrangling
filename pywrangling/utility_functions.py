@@ -60,6 +60,8 @@ def testing_function():
 
 
 # %% Define the function to fetch command line arguments or default values
+# The function aims to provide flexibility in a Python script, allowing it to either accept input parameters from the command line or fall back to predefined default values. 
+
 def fetch_arguments(default_values):
     r"""
     Fetch command-line arguments if available; otherwise, use default values.
