@@ -12,11 +12,11 @@ import warnings  # Used to issue warning messages
 from tqdm import tqdm  # Progress bar library
 import pandas as pd 
 import tkinter as tk
-
-
+import matplotlib.pyplot as plt
+from datetime import datetime
+from dateutil.tz import tzlocal
 
 """The main use for this is to collect the names of files already crawled so that an inturrupted crawl doesnt start from scratch."""
-
 def s3_glob(s3_client, bucket_name, subfolder_path, extensions):
     """
     Returns a DataFrame with names of all files with given extensions or no extension from the specified S3 bucket and subfolder.
@@ -125,7 +125,7 @@ def download_files_from_s3(s3_client, bucket_name, subfolder_path, extensions, s
     return downloaded_files
 
 
-def download_file_from_s3(s3_instance, bucket_name, subfolder_path, file_name, destination_directory):
+def download_file_from_s3(s3_client, bucket_name, subfolder_path, file_name, destination_directory):
     """
     Download a file from an S3 bucket to a specified local directory.
 
@@ -156,7 +156,7 @@ def download_file_from_s3(s3_instance, bucket_name, subfolder_path, file_name, d
 
     try:
         # Download the file
-        s3_instance.download_file(bucket_name, full_file_path, destination_file_path)
+        s3_client.download_file(bucket_name, full_file_path, destination_file_path)
         return destination_file_path
     except Exception as e:
         return f"An error occurred: {e}"
@@ -216,7 +216,7 @@ def get_aws_credentials():
 
 
 
-def s3_filter_processed_files(dataframe, s3_client, paginator, filename_col, bucket, subdirectory):
+def s3_filter_processed_files(s3_client, dataframe,  paginator, filename_col, bucket, subdirectory):
     """
     Drops rows from the DataFrame where the filename already exists in the S3 bucket.
 
@@ -251,7 +251,100 @@ def s3_filter_processed_files(dataframe, s3_client, paginator, filename_col, buc
 
 
 
+def avg_speed(s3, bucket_name, prefix, file_extension):
+    """
+    Plots the average number of files modified per day and prints the average per hour,
+    adjusting for the local time zone of the machine where the script is run.
+    
+    
+    # Example usage of the function
+    # Initialize S3 client
+    s3 = boto3.client(
+        's3',
+        aws_access_key_id='id',
+        aws_secret_access_key='key'
+    )
+    
+    # Set up the paginator for the s3 client
+    paginator = s3.get_paginator('list_objects_v2')
+         
+    bucket_name = 'my-bucket'
+    prefix = 'Data/HTML/'  # include trailing slash if specifying a subdirectory
+    file_extension = '.html'  # example file extension
+    
+    avg_speed(s3, bucket_name, prefix, file_extension)    
+        
+    
+    """
+    # List objects in the specified bucket and prefix
+    response = s3.list_objects_v2(Bucket=bucket_name, Prefix=prefix)
+
+    # Check if the request returned any contents
+    if 'Contents' not in response:
+        print("No objects found.")
+        return
+
+    # Filter files by the specified extension and extract last modified times
+    files = [obj for obj in response['Contents'] if obj['Key'].endswith(file_extension)]
+    times = [obj['LastModified'] for obj in files]
+
+    # Convert to pandas DataFrame
+    df = pd.DataFrame(times, columns=['LastModified'])
+
+    # Convert 'LastModified' to UTC and then to local time zone
+    df['LastModified'] = pd.to_datetime(df['LastModified'], utc=True)
+    df['LastModified'] = df['LastModified'].dt.tz_convert(tzlocal())
+
+    # Remove timezone information for consistency
+    df['LastModified'] = df['LastModified'].dt.tz_localize(None)
+
+    # Calculate hourly average
+    df['Hour'] = df['LastModified'].dt.hour
+    hourly_counts = df.groupby('Hour').size()
+    hourly_average = hourly_counts.mean()
+
+    # Calculate daily average
+    df['Date'] = df['LastModified'].dt.date
+    daily_counts = df.groupby('Date').size()
+    daily_average = daily_counts.mean()
+
+    # Print daily grouped data
+    print(daily_counts)
 
 
+    daily_counts.plot(kind='line', title='Average File Modifications Per Day', marker='o', markersize=5)
+    
+ # Plotting the series
+    plt.figure(figsize=(12, 6))  # Increase the figure size for a more professional look
+    plt.plot(daily_counts.index, daily_counts.values, marker='o', markersize=5, label='Average Count')
+    
+    # Tilt the x-axis labels and set title font size
+    plt.xticks(rotation=45)
+    plt.title('Average File Modifications Per Day', fontsize=16)  # Adjust font size as needed
+    
+    # Highlight today's point if it exists in the data
+    today = datetime.now().date()
+    if today in daily_counts.index:
+        plt.scatter(today, daily_counts.loc[today], color='red', s=100, label='Today')  # s is the size of the marker
+    
+    # Set y-axis label position and title
+    plt.ylabel('Average Count', rotation=0, ha='right', fontsize=12)  # Rotate label, right-align, adjust font size
+    
+    # Move the y-axis label to the top on the left side
+    ax = plt.gca()
+    ax.yaxis.set_label_coords(0.1, 1.02)
+    
+    # Add a horizontal line for the overall average
+    plt.axhline(y=daily_average, color='green', linestyle='--', linewidth=2, label='Overall Avg')
+    
+    # Add legend and grid
+    plt.legend()
+    plt.grid(True)
+    
+    plt.show()
+    
+    # Print overall average per hour and per day
+    print(f"Overall average modifications per hour: {hourly_average}")
+    print(f"Overall average modifications per day: {daily_average}")
 
 
