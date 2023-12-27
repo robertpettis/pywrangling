@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 """
-Created on Mon Aug 21 14:51:31 2023
-
-@author: Owner
+Updates needed:
+    1) The dates arent right
+    2) The graph is avg file modifications per day which is fine
 """
 
 import boto3  # AWS SDK for Python to interact with Amazon S3 and other AWS services
@@ -294,30 +294,33 @@ def avg_speed(s3, bucket_name, prefix, file_extension):
     # Convert 'LastModified' to UTC and then to local time zone
     df['LastModified'] = pd.to_datetime(df['LastModified'], utc=True)
     df['LastModified'] = df['LastModified'].dt.tz_convert(tzlocal())
-
-    # Remove timezone information for consistency
     df['LastModified'] = df['LastModified'].dt.tz_localize(None)
 
-    # Calculate hourly average
-    df['Hour'] = df['LastModified'].dt.hour
-    hourly_counts = df.groupby('Hour').size()
-    hourly_average = hourly_counts.mean()
-
-    # Calculate daily average
+    # Daily average calculations
     df['Date'] = df['LastModified'].dt.date
     daily_counts = df.groupby('Date').size()
     daily_average = daily_counts.mean()
 
-    # Print daily grouped data
-    print(daily_counts)
+    # Hourly average per day calculations
+    df['Hour'] = df['LastModified'].dt.hour
+    hourly_avg_per_day = df.groupby(['Date', 'Hour']).size().groupby('Date').mean()
 
+    # Print daily and hourly grouped data
+    print(f"""
+          Daily Counts:
+              
+              {daily_counts}
+              
+          Hourly Average By Day
+          
+              {hourly_avg_per_day}
+          
+          """)
 
+    # Plot for daily average
+    plt.figure(figsize=(12, 6))
     daily_counts.plot(kind='line', title='Average File Modifications Per Day', marker='o', markersize=5)
-    
- # Plotting the series
-    plt.figure(figsize=(12, 6))  # Increase the figure size for a more professional look
-    plt.plot(daily_counts.index, daily_counts.values, marker='o', markersize=5, label='Average Count')
-    
+
     # Tilt the x-axis labels and set title font size
     plt.xticks(rotation=45)
     plt.title('Average File Modifications Per Day', fontsize=16)  # Adjust font size as needed
@@ -342,9 +345,16 @@ def avg_speed(s3, bucket_name, prefix, file_extension):
     plt.grid(True)
     
     plt.show()
+
+    # Plot for hourly average per day
+    plt.figure(figsize=(12, 6))  # New figure for the hourly average per day plot
+    hourly_avg_per_day.plot(kind='bar', title='Average File Modifications Per Hour Per Day')
+    plt.xlabel('Date', fontsize=12)
+    plt.ylabel('Average Hourly Count', rotation=0, ha='right', fontsize=12)
+    plt.xticks(rotation=45)
+    plt.show()
     
     # Print overall average per hour and per day
-    print(f"Overall average modifications per hour: {hourly_average}")
+    print(f"Overall average modifications per hour: {hourly_avg_per_day.mean()}")
     print(f"Overall average modifications per day: {daily_average}")
-
 
