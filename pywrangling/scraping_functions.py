@@ -142,7 +142,7 @@ def initialize_browser(chromepath, extension_path=None, additional_options=None,
     service = Service(executable_path=chromepath)
     
     # Initialize the Selenium WebDriver with Chrome
-    driver = Chrome(service=service, options=chrome_options)  # Using Chrome directly
+    driver = webdriver.Chrome(service=service, options=chrome_options)  # Using Chrome directly
     
     return driver
 
