@@ -1,3 +1,5 @@
+NOTE: The code has grown much faster than the readme. Please be patient while I update the readme to reflect the current state of the code.
+
 # Python Functions
 
 This repository contains a collection of Python functions designed to simplify common data wrangling tasks. These include renaming columns, moving columns, and replacing values in a DataFrame based on certain conditions...
