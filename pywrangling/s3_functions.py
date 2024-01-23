@@ -381,8 +381,12 @@ def upload_file_to_s3(s3_client, bucket_name, subfolder_path, local_file_path):
     # Extract the file name from the local file path
     file_name = os.path.basename(local_file_path)
 
+    # Ensure the subfolder path ends with a '/'
+    if not subfolder_path.endswith('/'):
+        subfolder_path += '/'
+
     # Construct the full S3 path (key) for the file
-    s3_path = os.path.join(subfolder_path, file_name)
+    s3_path = f"{subfolder_path}{file_name}"
 
     try:
         # Perform the upload
