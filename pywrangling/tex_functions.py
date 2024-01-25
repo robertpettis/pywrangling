@@ -134,9 +134,10 @@ def process_tex_files(folder_path):
             print(f"Processed {filename}")
 
 
-def value_counts_to_latex(value_counts, column_name, order=None, caption="Value Counts", label=None, note=None):
+def value_counts_to_latex(value_counts, column_name, order=None, caption="Value Counts", 
+                          label=None, note=None, caption_position='above', include_total=False):
     """
-    Generate LaTeX table from pandas value_counts().
+    Generate LaTeX table from pandas value_counts() with specific line formatting.
 
     Parameters
     ----------
@@ -152,6 +153,10 @@ def value_counts_to_latex(value_counts, column_name, order=None, caption="Value 
         Label for the table. Default is None.
     note : str, optional
         Note for the table. Default is None.
+    caption_position : str, optional
+        Position of the caption, either 'above' or 'below'. Default is 'above'.
+    include_total : bool, optional
+        Include a total row at the end of the table. Default is False.
 
     Returns
     -------
@@ -160,38 +165,58 @@ def value_counts_to_latex(value_counts, column_name, order=None, caption="Value 
 
     Examples
     --------
-    >>> df['column'].value_counts().pipe(value_counts_to_latex, 'column')
+    >>> df['column'].value_counts().pipe(value_counts_to_latex, 'column', caption_position='below')
     """
+    table = "\\begin{table}[H]\n"
+    table += "\\begin{center}\n"
+    table += "\\begin{minipage}{0.5\\linewidth}\n"
+    table += "\\centering\n"
+    table += "\\begin{tabular}{l|c}\n"
+    table += "\\hline\n"
+    table += f"\\textbf{{{column_name}}} & \\textbf{{Count}}\\\\\\midrule\n"
+    
     # Order value_counts if order list is provided
     if order is not None:
         value_counts = value_counts.reindex(order, fill_value=0)
 
-    table = "\\begin{table}[H]\n"
-    table += "\\caption{" + caption + "}\n"
-    if label:
-        table += "\\label{" + label + "}\n"
-    table += "\\begin{center}\n"
-    table += "\\begin{minipage}{0.5\\linewidth}\n"  # Begin a minipage
-    table += "\\centering\n"
-    table += "\\begin{tabular}{l|c}\n"
-    table += "\\hline\n"
-    table += f"\\textbf{{{column_name}}} & \\textbf{{Count}}\\\\\\hline\\hline\n"
-    
     for index, count in value_counts.items():
         formatted_count = format(int(count), ',')
         table += f"{index} & {formatted_count}\\\\\n"
     
+    if include_total:
+        total = value_counts.sum()
+        table += "\\midrule\n"
+        table += f"Total & {format(int(total), ',')}\\\\\n"
+
+    table += "\\hline\n"
     table += "\\hline\n"
     table += "\\end{tabular}\n"
 
-    if note:
+    if note and caption_position == 'below':
         table += "\\vspace{.2cm}\n"
-        table += "\\begin{tabular}{@{}p{0.9\\linewidth}@{}}\n"  # Begin a full-width single-column table
+        table += "\\begin{tabular}{@{}p{0.9\\linewidth}@{}}\n"
         table += "\\small " + note + "\n"
+        table += "\\end{tabular}\n"
         table += "\\vspace{.1cm}\n"
-        table += "\\end{tabular}\n"  # End the full-width single-column table
 
-    table += "\\end{minipage}\n"  # End minipage
+    if caption_position == 'above':
+        table += "\\caption{" + caption + "}\n"
+        if label:
+            table += "\\label{" + label + "}\n"
+
+    if note and caption_position == 'above':
+        table += "\\vspace{.2cm}\n"
+        table += "\\begin{tabular}{@{}p{0.9\\linewidth}@{}}\n"
+        table += "\\small " + note + "\n"
+        table += "\\end{tabular}\n"
+        table += "\\vspace{.1cm}\n"
+
+    if caption_position == 'below':
+        table += "\\caption{" + caption + "}\n"
+        if label:
+            table += "\\label{" + label + "}\n"
+
+    table += "\\end{minipage}\n"
     table += "\\end{center}\n"
     table += "\\end{table}\n"
     
