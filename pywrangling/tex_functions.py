@@ -135,9 +135,10 @@ def process_tex_files(folder_path):
 
 
 def value_counts_to_latex(value_counts, column_name, order=None, caption="Value Counts", 
-                          label=None, note=None, caption_position='above', include_total=False):
+                          label=None, note=None, caption_position='above', 
+                          total=False, percent=False):
     """
-    Generate LaTeX table from pandas value_counts() with specific line formatting.
+    Generate LaTeX table from pandas value_counts() with options for total and percentage columns.
 
     Parameters
     ----------
@@ -155,8 +156,10 @@ def value_counts_to_latex(value_counts, column_name, order=None, caption="Value 
         Note for the table. Default is None.
     caption_position : str, optional
         Position of the caption, either 'above' or 'below'. Default is 'above'.
-    include_total : bool, optional
+    total : bool, optional
         Include a total row at the end of the table. Default is False.
+    percent : bool, optional
+        Include a percentage column in the table. Default is False.
 
     Returns
     -------
@@ -165,28 +168,40 @@ def value_counts_to_latex(value_counts, column_name, order=None, caption="Value 
 
     Examples
     --------
-    >>> df['column'].value_counts().pipe(value_counts_to_latex, 'column', caption_position='below')
+    >>> df['column'].value_counts().pipe(value_counts_to_latex, 'column', total=True, percent=True)
     """
+    
+    if percent or total:
+        total_count = value_counts.sum()
+
+    formatted_values = []
+    for index, count in value_counts.iteritems():
+        formatted_count = f"{count:,}"
+        if percent:
+            percent_value = f"{count / total_count:.1%}".replace('%', '\\%')
+            formatted_values.append(f"{index} & {formatted_count} & {percent_value}\\\\\n")
+        else:
+            formatted_values.append(f"{index} & {formatted_count}\\\\\n")
+
     table = "\\begin{table}[H]\n"
     table += "\\begin{center}\n"
     table += "\\begin{minipage}{0.5\\linewidth}\n"
     table += "\\centering\n"
-    table += "\\begin{tabular}{l|c}\n"
+    table += "\\begin{tabular}{l c" + (" c" if percent else "") + "}\n"
     table += "\\hline\n"
-    table += f"\\textbf{{{column_name}}} & \\textbf{{Count}}\\\\\\midrule\n"
+    headers = f"\\textbf{{{column_name}}} & \\textbf{{Count}}"
+    headers += " & \\textbf{{Percentage}}" if percent else ""
+    table += headers + "\\\\\\midrule\n"
     
-    # Order value_counts if order list is provided
-    if order is not None:
-        value_counts = value_counts.reindex(order, fill_value=0)
-
-    for index, count in value_counts.items():
-        formatted_count = format(int(count), ',')
-        table += f"{index} & {formatted_count}\\\\\n"
+    # Add formatted rows to the table
+    for value in formatted_values:
+        table += value
     
-    if include_total:
-        total = value_counts.sum()
+    if total:
+        total_row = f"Total & {total_count:,}"
+        total_row += " & 100\\%" if percent else ""
         table += "\\midrule\n"
-        table += f"Total & {format(int(total), ',')}\\\\\n"
+        table += total_row + "\\\\\n"
 
     table += "\\hline\n"
     table += "\\hline\n"
@@ -225,46 +240,89 @@ def value_counts_to_latex(value_counts, column_name, order=None, caption="Value 
 
 
 
+def crosstab_to_latex(df, caption="Crosstab Table", label=None, note=None, 
+                      caption_position='above', minipage_size=0.5, 
+                      total_rows=False, total_columns=False, 
+                      percent_rows=False, percent_columns=False):
+    """
+    Generate LaTeX table from a pandas crosstab DataFrame.
 
+    Parameters
+    ----------
+    df : pandas.DataFrame
+        DataFrame, usually from pandas crosstab() method.
+    caption : str, optional
+        Caption for the table. Default is "Crosstab Table".
+    label : str, optional
+        Label for the table. Default is None.
+    note : str, optional
+        Note for the table. Default is None.
+    caption_position : str, optional
+        Position of the caption, either 'above' or 'below'. Default is 'above'.
+    minipage_size : float, optional
+        The size of the minipage as a fraction of the line width. Default is 0.5.
+    total_rows : bool, optional
+        Include a total row at the end of the table. Default is False.
+    total_columns : bool, optional
+        Include a total column at the end of the table. Default is False.
+    percent_rows : bool, optional
+        Include a percentage row at the end of the table. Default is False.
+    percent_columns : bool, optional
+        Include a percentage column at the end of the table. Default is False.
 
+    Returns
+    -------
+    str
+        LaTeX table.
+    """
 
-def crosstab_to_latex(crosstab, caption="Crosstab", label=None, note=None, copy_mode=False):
-    # Determine the backslash character to use based on the mode
-    bs = "\\" if copy_mode else "\\\\"
+    if total_columns:
+        df['Total'] = df.sum(axis=1)
+    if percent_columns:
+        df = df.div(df.sum(axis=1), axis=0) * 100
+        df = df.applymap(lambda x: f"{x:.1f}\\%")
+    if total_rows:
+        df.loc['Total'] = df.sum()
+    if percent_rows:
+        df = df.div(df.sum(axis=0), axis=1) * 100
+        df.loc['Total'] = df.loc['Total'].apply(lambda x: f"{x:.1f}\\%")
 
-    table = f"{bs}begin{{table}}[H]\n"
-    table += f"{bs}caption{{{caption}}}\n"
-    if label:
-        table += f"{bs}label{{{label}}}\n"
-    table += f"{bs}begin{{center}}\n"
-    table += f"{bs}begin{{tabular}}{{l|{'c' * len(crosstab.columns)}}}\n"
-    
-    # Header
-    table += f"{bs}hline\n"
-    table += f"{bs}textbf{{}}"
-    for column in crosstab.columns:
-        table += f" & {bs}textbf{{{column}}}"
-    table += f"{bs}{bs}\n{bs}hline{bs}hline\n"
-    
-    # Rows
-    for index, row in crosstab.iterrows():
-        table += f"{bs}textbf{{{index}}}"
-        for value in row:
-            formatted_value = format(value, ',')
-            table += f" & {formatted_value}"
-        table += f"{bs}{bs}\n"
-    
-    table += f"{bs}hline\n"
-    table += f"{bs}end{{tabular}}\n"
+    column_format = "l" + "r" * (len(df.columns) - 1)
+    headers = " & ".join(map(lambda x: f"\\textbf{{{x}}}", df.columns))
+    body = " \\\\\n".join([" & ".join(map(str, row)) for row in df.itertuples(index=False, name=None)])
+
+    table = f"""
+\\begin{{table}}[H]
+\\begin{{center}}
+\\begin{{minipage}}{{{minipage_size}\\linewidth}}
+\\centering
+\\begin{{tabular}}{{{column_format}}}
+\\hline
+{headers} \\\\
+\\midrule
+{body} \\\\
+\\hline
+\\hline
+\\end{{tabular}}
+"""
+    if caption_position == 'above':
+        table += f"\\caption{{{caption}}}\n"
+        if label:
+            table += f"\\label{{{label}}}\n"
     if note:
-        table += f"{bs}begin{{minipage}}{{10cm}}\n"
-        table += f"{bs}vspace{{.2cm}}\n"
-        table += f"{bs}small {note}\n"
-        table += f"{bs}vspace{{.1cm}}\n"
-        table += f"{bs}end{{minipage}}\n"
-    table += f"{bs}end{{center}}\n"
-    table += f"{bs}end{{table}}\n"
-    
+        table += "\\vspace{.2cm}\n"
+        table += "\\begin{tabular}{@{}p{0.9\\linewidth}@{}}\n"
+        table += f"\\small {note}\n"
+        table += "\\end{tabular}\n"
+        table += "\\vspace{.1cm}\n"
+    if caption_position == 'below':
+        table += f"\\caption{{{caption}}}\n"
+        if label:
+            table += f"\\label{{{label}}}\n"
+    table += "\\end{minipage}\n"
+    table += "\\end{center}\n"
+    table += "\\end{table}\n"
+
     return table
 
 
