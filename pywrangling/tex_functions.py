@@ -189,8 +189,8 @@ def value_counts_to_latex(value_counts, column_name, order=None, caption="Value 
     table += "\\centering\n"
     table += "\\begin{tabular}{l c" + (" c" if percent else "") + "}\n"
     table += "\\hline\n"
-    headers = f"\\textbf{{{column_name}}} & \\textbf{{Count}}"
-    headers += " & \\textbf{{Percentage}}" if percent else ""
+    headers = f"{column_name} & Count"
+    headers += " & Percentage" if percent else ""
     table += headers + "\\\\\\midrule\n"
     
     # Add formatted rows to the table
@@ -280,9 +280,9 @@ def crosstab_to_latex(df, caption="Crosstab Table", label=None, note=None,
     """
 
     def format_with_commas(x):
-        if isinstance(x, (int, float)):
-            return f"{x:,.0f}"
-        return x
+          if isinstance(x, (int, float)):
+              return f"{x:,.0f}"
+          return x
 
     def format_with_percent(x):
         if isinstance(x, (int, float)):
@@ -300,9 +300,8 @@ def crosstab_to_latex(df, caption="Crosstab Table", label=None, note=None,
         df = pd.concat([df, df_percent], axis=1)
 
     if percent_row:
-        df_percent_row = (df.loc['Total'] / df.loc['Total'].sum()) * 100
+        df_percent_row = (df.loc['Total'] / df.loc['Total']. sum()) * 100
         df.loc['Percent'] = df_percent_row.apply(format_with_percent)
-
 
     df = df.applymap(format_with_commas)
 
@@ -310,39 +309,48 @@ def crosstab_to_latex(df, caption="Crosstab Table", label=None, note=None,
     df_reset = df.reset_index()
 
     column_format = "l" + "r" * len(df_reset.columns)
-    headers = " & ".join([f"\\textbf{{{col}}}" for col in df_reset.columns])
+    headers = " & ".join([f"{col}" for col in df_reset.columns])
     body = " \\\\\n".join([" & ".join(map(str, row)) for row in df_reset.itertuples(index=False, name=None)])
 
-    table = f"""
-\\begin{{table}}[H]
-\\begin{{center}}
-\\begin{{minipage}}{{{minipage_size}}}
-\\centering
-\\resizebox{{{resize_width}}}{{!}}{{%
-\\begin{{tabular}}{{{column_format}}}
-\\hline
-{headers} \\\\\n
-\\midrule\n
-{body} \\\\\n
-\\hline
-\\hline
-\\end{{tabular}}
-}}% end resizebox
-\\vspace{{.2cm}}
-\\begin{{tabular}}{{@{{}}p{{0.9\\linewidth}}@{{}}}}
-\\small {note}
-\\end{{tabular}}
-\\vspace{{.1cm}}
-"""
+    table = "\\begin{table}[H]\n"
+    table += "\\begin{center}\n"
+    table += f"\\begin{{minipage}}{{{minipage_size}\\linewidth}}\n"
+    table += "\\centering\n"
+
+    if resize_width:
+        table += f"\\resizebox{{{resize_width}}}{{!}}{{%\n"
+
+    table += f"\\begin{{tabular}}{{{column_format}}}\n"
+    table += "\\hline\n"
+    table += f"{headers} \\\\\n"
+    table += "\\midrule\n"
+    table += f"{body} \\\\\n"
+    table += "\\hline\n"
+    table += "\\hline\n"
+    table += "\\end{tabular}\n"
+
+    if resize_width:
+        table += "}% end resizebox\n"
+
+    table += "\\end{minipage}\n"
+    
     if caption_position == 'above':
         table += f"\\caption{{{caption}}}\n"
-    if label:
-        table += f"\\label{{{label}}}\n"
+        if label:
+            table += f"\\label{{{label}}}\n"
+    if note:
+        table += "\\vspace{.2cm}\n"
+        table += "\\begin{tabular}{@{}p{0.9\\linewidth}@{}}\n"
+        table += f"\\small {note}\n"
+        table += "\\end{tabular}\n"
+        table += "\\vspace{.1cm}\n"
     if caption_position == 'below':
         table += f"\\caption{{{caption}}}\n"
-    table += "\\end{{minipage}}\n"
-    table += "\\end{{center}}\n"
-    table += "\\end{{table}}\n"
+        if label:
+            table += f"\\label{{{label}}}\n"
+
+    table += "\\end{center}\n"
+    table += "\\end{table}\n"
 
     return table
 
