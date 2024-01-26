@@ -279,7 +279,7 @@ def crosstab_to_latex(df, caption="Crosstab Table", label=None, note=None,
         LaTeX table.
     """
 
-    def format_with_commas(x):
+ def format_with_commas(x):
         if isinstance(x, (int, float)):
             return f"{x:,.0f}"
         return x
@@ -314,12 +314,12 @@ def crosstab_to_latex(df, caption="Crosstab Table", label=None, note=None,
 
     table = "\\begin{table}[H]\n"
     table += "\\begin{center}\n"
+    table += f"\\begin{{minipage}}{{{minipage_size}\\linewidth}}\n"
+    table += "\\centering\n"
 
     if resize_width:
         table += f"\\resizebox{{{resize_width}}}{{!}}{{%\n"
 
-    table += f"\\begin{{minipage}}{{{minipage_size}\\linewidth}}\n"
-    table += "\\centering\n"
     table += f"\\begin{{tabular}}{{{column_format}}}\n"
     table += "\\hline\n"
     table += f"{headers} \\\\\n"
@@ -331,6 +331,8 @@ def crosstab_to_latex(df, caption="Crosstab Table", label=None, note=None,
 
     if resize_width:
         table += "}% end resizebox\n"
+
+    table += "\\end{minipage}\n"
 
     if caption_position == 'above':
         table += f"\\caption{{{caption}}}\n"
@@ -346,7 +348,7 @@ def crosstab_to_latex(df, caption="Crosstab Table", label=None, note=None,
         table += f"\\caption{{{caption}}}\n"
         if label:
             table += f"\\label{{{label}}}\n"
-    table += "\\end{minipage}\n"
+
     table += "\\end{center}\n"
     table += "\\end{table}\n"
 
