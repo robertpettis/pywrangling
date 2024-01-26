@@ -2,7 +2,7 @@
 # %% Package Imports
 import os  # Provides a way of interacting with the operating system
 import re  # Regular expressions library for string manipulation
-
+import pandas as pd
 
 # %% FUNCTIONS FOR BRUTE FORCING PROPER FORMATTING IN LATEX FILES 
 def add_space_after_ampersand(latex_content):
@@ -242,10 +242,10 @@ def value_counts_to_latex(value_counts, column_name, order=None, caption="Value 
 
 def crosstab_to_latex(df, caption="Crosstab Table", label=None, note=None, 
                       caption_position='above', minipage_size=0.5, 
-                      total_rows=False, total_columns=False, 
-                      percent_rows=False, percent_columns=False):
+                      total_row=False, percent_row=False, 
+                      total_column=False, percent_column=False, resize_width=None):
     """
-    Generate LaTeX table from a pandas crosstab DataFrame.
+    Generate LaTeX table from a pandas crosstab DataFrame with options for total and percentage rows and columns.
 
     Parameters
     ----------
@@ -261,14 +261,17 @@ def crosstab_to_latex(df, caption="Crosstab Table", label=None, note=None,
         Position of the caption, either 'above' or 'below'. Default is 'above'.
     minipage_size : float, optional
         The size of the minipage as a fraction of the line width. Default is 0.5.
-    total_rows : bool, optional
+    total_row : bool, optional
         Include a total row at the end of the table. Default is False.
-    total_columns : bool, optional
-        Include a total column at the end of the table. Default is False.
-    percent_rows : bool, optional
+    percent_row : bool, optional
         Include a percentage row at the end of the table. Default is False.
-    percent_columns : bool, optional
+    total_column : bool, optional
+        Include a total column at the end of the table. Default is False.
+    percent_column : bool, optional
         Include a percentage column at the end of the table. Default is False.
+    resize_width : str, optional
+        A string representing the width to resize the table to, e.g., '0.8\\textwidth'. 
+        If None, no resizing is applied. Default is None.
 
     Returns
     -------
@@ -276,35 +279,59 @@ def crosstab_to_latex(df, caption="Crosstab Table", label=None, note=None,
         LaTeX table.
     """
 
-    if total_columns:
+    def format_with_commas(x):
+        if isinstance(x, (int, float)):
+            return f"{x:,.0f}"
+        return x
+
+    def format_with_percent(x):
+        if isinstance(x, (int, float)):
+            return f"{x:.1f}\\%"
+        return x
+
+    if total_column:
         df['Total'] = df.sum(axis=1)
-    if percent_columns:
-        df = df.div(df.sum(axis=1), axis=0) * 100
-        df = df.applymap(lambda x: f"{x:.1f}\\%")
-    if total_rows:
+    if total_row:
         df.loc['Total'] = df.sum()
-    if percent_rows:
-        df = df.div(df.sum(axis=0), axis=1) * 100
-        df.loc['Total'] = df.loc['Total'].apply(lambda x: f"{x:.1f}\\%")
 
-    column_format = "l" + "r" * (len(df.columns) - 1)
-    headers = " & ".join(map(lambda x: f"\\textbf{{{x}}}", df.columns))
-    body = " \\\\\n".join([" & ".join(map(str, row)) for row in df.itertuples(index=False, name=None)])
+    if percent_column:
+        df_percent = df.div(df.sum(axis=1), axis=0) * 100
+        df_percent = df_percent.applymap(format_with_percent)
+        df = pd.concat([df, df_percent], axis=1)
 
-    table = f"""
-\\begin{{table}}[H]
-\\begin{{center}}
-\\begin{{minipage}}{{{minipage_size}\\linewidth}}
-\\centering
-\\begin{{tabular}}{{{column_format}}}
-\\hline
-{headers} \\\\
-\\midrule
-{body} \\\\
-\\hline
-\\hline
-\\end{{tabular}}
-"""
+    if percent_row:
+        df_percent_row = (df.loc['Total'] / df.loc['Total'].sum()) * 100
+        df.loc['Percent'] = df_percent_row.apply(format_with_percent)
+
+    df = df.applymap(format_with_commas)
+
+    # Reset the index to include it in the table
+    df_reset = df.reset_index()
+
+    column_format = "l" + "r" * len(df_reset.columns)
+    headers = " & ".join([f"\\textbf{{{col}}}" for col in df_reset.columns])
+    body = " \\\\\n".join([" & ".join(map(str, row)) for row in df_reset.itertuples(index=False, name=None)])
+
+    table = "\\begin{table}[H]\n"
+    table += "\\begin{center}\n"
+
+    if resize_width:
+        table += f"\\resizebox{{{resize_width}}}{{!}}{{%\n"
+
+    table += f"\\begin{{minipage}}{{{minipage_size}\\linewidth}}\n"
+    table += "\\centering\n"
+    table += f"\\begin{{tabular}}{{{column_format}}}\n"
+    table += "\\hline\n"
+    table += f"{headers} \\\\\n"
+    table += "\\midrule\n"
+    table += f"{body} \\\\\n"
+    table += "\\hline\n"
+    table += "\\hline\n"
+    table += "\\end{tabular}\n"
+
+    if resize_width:
+        table += "}% end resizebox\n"
+
     if caption_position == 'above':
         table += f"\\caption{{{caption}}}\n"
         if label:
