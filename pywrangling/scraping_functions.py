@@ -120,7 +120,7 @@ def initialize_browser(chromepath, extension_path=None, additional_options=None,
     driver.get("https://www.google.com")
     ```
     """
-    # Set Chrome options
+ # Set Chrome options
     chrome_options = Options()
     chrome_options.add_argument("--start-maximized")
 
@@ -142,7 +142,15 @@ def initialize_browser(chromepath, extension_path=None, additional_options=None,
     service = Service(executable_path=chromepath)
     
     # Initialize the Selenium WebDriver with Chrome
-    driver = webdriver.Chrome(service=service, options=chrome_options)  # Using Chrome directly
+    driver = webdriver.Chrome(service=service, options=chrome_options)
+
+    # Define and inject the JavaScript function for XPath evaluation
+    js_xpath_function = """
+    window.getElementByXpath = function(path) {
+        return document.evaluate(path, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue;
+    }
+    """
+    driver.execute_script(js_xpath_function)
     
     return driver
 
