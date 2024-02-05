@@ -117,6 +117,36 @@ def s3_filter_processed_files(dataframe, s3_client, paginator, filename_col, buc
     return dataframe[~dataframe[filename_col].isin(existing_files)]
 
 
+def filter_processed_files(dataframe, s3_client, paginator, filename_col, bucket, subdirectory):
+    """
+    Drops rows from the DataFrame where the filename already exists in the S3 bucket.
+
+    Parameters:
+    - dataframe (pandas.DataFrame): DataFrame containing the filenames.
+    - filename_col (str): Name of the column in the DataFrame that contains the filenames.
+    - bucket (str): The name of the S3 bucket.
+    - subdirectory (str): The subdirectory in the S3 bucket.
+
+    Returns:
+    - pandas.DataFrame: The filtered DataFrame.
+
+    Example usage:
+    filtered_df = filter_processed_files(df, 'FILENAME', 'my-bucket', 'my/subdirectory')
+    """
+
+    prefix = f"{subdirectory}/" if subdirectory else ""
+
+    # Set to store filenames found in S3
+    existing_files = set()
+
+    # Iterate over pages of objects in S3
+    for page in paginator.paginate(Bucket=bucket, Prefix=prefix):
+        for obj in page.get('Contents', []):
+            filename = obj['Key'].split('/')[-1]
+            existing_files.add(filename)
+
+    # Drop rows where the filename exists in S3
+    return dataframe[~dataframe[filename_col].isin(existing_files)]
 
 
 
