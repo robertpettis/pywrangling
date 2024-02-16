@@ -43,6 +43,12 @@ from selenium.webdriver.support.ui import Select
 
 
 import json
+
+import time
+import jwt
+from datetime import datetime, timedelta
+
+
 # %% Functions
 
 def find_and_highlight(element, wait_time=10, background_color="yellow", border_color="red"):
@@ -477,12 +483,74 @@ def request_interceptor(request):
 
 
 
+def is_token_valid(bearer_token, additional_minutes=0):
+    """
+    Check if the JWT token is still valid and will remain valid for an additional set of minutes.
+    
+    :param bearer_token: The JWT token prefixed with "Bearer "
+    :param additional_minutes: The number of additional minutes the token should be valid for
+    :return: True if the token is valid and False otherwise
+    
+    Usage:
+    bearer_token = "Bearer eyJ0eXAiOiJKV1QiLC..."
+    is_valid = is_token_valid_for_additional_minutes(bearer_token, 10)
+    if is_valid:
+        print("Token is valid for at least another 10 minutes.")
+    else:
+        print("Token is invalid or expiring soon.")
+  
+    
+    """
+    token = bearer_token.split(" ")[1]  # Remove the "Bearer " prefix
+    
+    try:
+        decoded = jwt.decode(token, options={"verify_signature": False})
+        exp_time = decoded.get('exp', 0)
+        current_time = time.time()
+        future_time = current_time + (additional_minutes * 60)  # Convert minutes to seconds
+        
+        return exp_time > future_time
+    except jwt.PyJWTError as e:
+        print(f"Error decoding token: {e}")
+        return False
 
 
 
 
+def get_token_expiration_details(bearer_token):
+    """
+    Returns the expiration time of the JWT token and the time left until expiration.
+    
+    :param bearer_token: The JWT token prefixed with "Bearer "
+    :return: A tuple containing the expiration datetime (in UTC) and the time left in seconds
+    
+     
+    Usage:
 
-
+    bearer_token = "Bearer eyJ0eXAiOiJKV1QiLC..."
+    expiration_date, time_left = get_token_expiration_details(bearer_token)
+    if expiration_date:
+        print(f"Token expires on: {expiration_date} UTC, Time left: {time_left}")
+    else:
+        print("Could not decode token.")
+   
+    
+    """
+    token = bearer_token.split(" ")[1]  # Remove the "Bearer " prefix
+    
+    try:
+        decoded = jwt.decode(token, options={"verify_signature": False})
+        exp_time = decoded.get('exp', 0)
+        current_time = time.time()
+        time_left = exp_time - current_time  # Time left in seconds
+        
+        # Convert the exp_time to a datetime object
+        exp_date = datetime.utcfromtimestamp(exp_time)
+        
+        return exp_date, timedelta(seconds=time_left)
+    except jwt.PyJWTError as e:
+        print(f"Error decoding token: {e}")
+        return None, None
 
 
 
