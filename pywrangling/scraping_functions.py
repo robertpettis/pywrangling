@@ -39,6 +39,10 @@ from selenium.common.exceptions import ElementClickInterceptedException, Timeout
 from selenium.webdriver.common.alert import Alert  # Handling some alert errors
 
 from selenium.webdriver.support.ui import Select
+
+
+
+import json
 # %% Functions
 
 def find_and_highlight(element, wait_time=10, background_color="yellow", border_color="red"):
@@ -422,7 +426,53 @@ def click_with_retry(element, max_attempts=20, wait=1):
 
 
 
+#%% These were put together to get auth tokens for APIs, but we could potentially get anything we would normally see in the network tab when inspecting with these
 
+# Source for this one: https://gist.github.com/rengler33/f8b9d3f26a518c08a414f6f86109863c
+def process_browser_logs_for_network_events(logs):
+    """
+    Return only logs which have a method that start with "Network.response", "Network.request", or "Network.webSocket"
+    since we're interested in the network events specifically.
+    """
+    for entry in logs:
+        log = json.loads(entry["message"])["message"]
+        if (
+                "Network.response" in log["method"]
+                or "Network.request" in log["method"]
+                or "Network.webSocket" in log["method"]
+        ):
+            yield log
+            
+
+def find_bearer_tokens(logs):
+    """
+    Filters the provided logs for entries that contain bearer tokens
+    in the request or response headers.
+    """
+    bearer_entries = []
+
+    for entry in logs:
+        log = json.loads(entry['message'])['message']
+        
+        # Check if the log entry is related to network events
+        if "Network.requestWillBeSent" in log['method']:
+            # Extract the request headers
+            headers = log.get('params', {}).get('request', {}).get('headers', {})
+            
+            # Look for the Authorization header
+            authorization = headers.get('Authorization', '')
+            if 'Bearer' in authorization:
+                bearer_entries.append(log)
+
+    return bearer_entries            
+
+# Set up an event listener for network requests
+def request_interceptor(request):
+    print(request['request']['url'])
+    if request['request']['url'].endswith('/api/users'):
+        headers = request['request']['headers']
+        print(headers.get('Authorization'))
+        
 
 
 
