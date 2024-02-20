@@ -429,6 +429,29 @@ def click_with_retry(element, max_attempts=20, wait=1):
     return False  # Click failed after retries
 
 
+def wait_for_page_load(driver, timeout=30):
+    """
+    Wait for the page to be completely loaded.
+
+    :param driver: Selenium WebDriver instance.
+    :param timeout: Maximum time to wait for page load (in seconds).
+    """
+    try:
+        # Wait for the document.readyState to be 'complete'
+        WebDriverWait(driver, timeout).until(
+            lambda d: d.execute_script('return document.readyState') == 'complete'
+        )
+        print("Page loaded successfully")
+    except TimeoutException:
+        print("Timed out waiting for page to load")
+
+
+
+
+
+
+
+
 
 
 
@@ -551,15 +574,6 @@ def get_token_expiration_details(bearer_token):
     except jwt.PyJWTError as e:
         print(f"Error decoding token: {e}")
         return None, None
-
-
-
-
-
-
-
-
-
 
 
 
