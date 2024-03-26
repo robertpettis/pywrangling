@@ -92,7 +92,8 @@ def find_and_highlight(element, wait_time=10, background_color="yellow", border_
     original_style = element.get_attribute('style')
 
     # Apply the highlight style
-    highlight_style = f"background: {background_color}; border: 2px solid {border_color};"
+    highlight_style = f"background: {background_color} !important; border: 2px solid {border_color} !important;"
+
     apply_style(highlight_style)
 
     # Pause for a moment to let the highlight be seen
