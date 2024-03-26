@@ -410,7 +410,18 @@ def find_element_by_title(title, element_type='*', wait_time=10, contains=False,
     return element
 
 
+def find_element_by_aria_label(driver, aria_label):
+    """
+    Find a web element by its aria-label attribute.
 
+    Parameters:
+        driver (WebDriver): The WebDriver instance.
+        aria_label (str): The value of the aria-label attribute to search for.
+
+    Returns:
+        WebElement: The WebElement object found by the aria-label attribute.
+    """
+    return driver.find_element(By.XPATH, f"//*[@aria-label='{aria_label}']")
 
 
 
