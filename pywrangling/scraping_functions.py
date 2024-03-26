@@ -376,6 +376,44 @@ def find_element_by_placeholder(text, element_type='input', wait_time=10, contai
 
 
 
+def find_element_by_title(title, element_type='*', wait_time=10, contains=False, driver=None):
+    """
+    Finds a web element by its title attribute using Selenium.
+
+    Parameters:
+    - title (str): The title attribute value to search for.
+    - driver (selenium.webdriver, optional): The Selenium WebDriver instance.
+    - element_type (str, optional): The type of the HTML element. Defaults to '*' (any element).
+    - wait_time (int, optional): Maximum time to wait for the element to become visible. Defaults to 10 seconds.
+    - contains (bool, optional): Whether to search for elements that contain the given title text. Defaults to False.
+
+    Returns:
+    - selenium.webdriver.remote.webelement.WebElement: The web element found.
+
+    Example usage:
+    >>> element = find_element_by_title("Havai 30")
+    >>> print(element.tag_name)
+    """
+    if contains:
+        xpath = f"//{element_type}[contains(@title, '{title}')]"
+    else:
+        xpath = f"//{element_type}[@title='{title}']"
+    
+    if driver is None:
+        try:
+            driver = globals()['driver']
+        except KeyError:
+            raise ValueError("Driver is not initialized. Please initialize the Selenium WebDriver.")
+            
+    element = WebDriverWait(driver, wait_time).until(EC.presence_of_element_located((By.XPATH, xpath)))
+    return element
+
+
+
+
+
+
+
 
 def select_from_dropdown(driver, dropdown_id, value, attribute=None, attribute_value=None):
     """
