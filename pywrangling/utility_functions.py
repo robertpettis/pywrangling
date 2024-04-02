@@ -16,6 +16,35 @@ import pandas as pd  # Data analysis and manipulation tool
 import os
 
 # %% Functions
+def relative_path(relative_path):
+    """
+    Generate a full file path from a relative path based on the current working directory.
+    
+    Parameters:
+    - relative_path (str): The relative path, using '..' to navigate up directories.
+
+    Returns:
+    - str: The absolute path corresponding to the relative path.
+
+    Raises:
+    - ValueError: If the current working directory is not set or if the path is invalid.
+    """
+
+    # Check if the current working directory is set
+    cwd = os.getcwd()
+    if not cwd:
+        raise ValueError("Current working directory is not set.")
+    
+    # Generate the full path
+    full_path = os.path.abspath(os.path.join(cwd, relative_path))
+    
+    # Optionally, check if the path exists, and if not, raise an error or handle accordingly
+    # This part depends on whether you want to ensure the path exists or if you're okay with creating it later
+    # if not os.path.exists(os.path.dirname(full_path)):
+    #     raise ValueError("The specified path does not exist.")
+    
+    return full_path
+
 
 def send_email_or_text(subject, body, sender, recipients, password):
     """   
