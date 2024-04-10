@@ -405,9 +405,6 @@ def proper_case(df, column):
 
 
 
-
-
-# %% Custom Functions
 def df_slice(df, start_pct, end_pct):
     """
     Get a slice of a DataFrame based on a percentage range.
@@ -425,3 +422,93 @@ def df_slice(df, start_pct, end_pct):
     end_index = int(total_length * end_pct)
     print(f"Dataframe sliced to start at {start_index} and end at {end_index}.")
     return df.iloc[start_index:end_index]
+
+
+
+
+
+def add_other_row(data, num_rows, new_row_name="Other", sort_column=None, sort_descending=True):
+    """
+    Modifies the input DataFrame or Series by appending an 'Other' row or item.
+    
+    For DataFrames, optionally sorts by a specified column before processing, with an option
+    to sort in descending order.
+    For Series, sorts by values if `sort_column` is truthy, considering `sort_descending` for order.
+    
+    Keeps the first `num_rows` rows/items as they are (after sorting, if applied),
+    sums the remaining rows/items, and appends the sum as a new row/item named `new_row_name`.
+    
+    Parameters:
+    - data: The original pandas DataFrame or Series.
+    - num_rows: The number of rows/items to keep from the start.
+    - new_row_name: The name of the new row/item to add with the summed values. Defaults to 'Other'.
+    - sort_column: Optional; for DataFrames, the column name to sort by before processing. For Series,
+      any truthy value triggers sorting by values. Defaults to None.
+    - sort_descending: Optional; boolean indicating if sorting should be in descending order. Defaults to True.
+    
+    Returns:
+    - The modified DataFrame or Series with the new 'Other' row/item.
+    
+    Sample Usage:
+    >>> df = pd.DataFrame({'A': [5, 1, 3, 2, 4], 'B': [1, 5, 3, 4, 2]})
+    >>> add_other_row(df, 3, sort_column='A', sort_descending=True)
+    >>> s = pd.Series([5, 1, 3, 2, 4])
+    >>> add_other_row(s, 3, sort_column=True)  # Here, sort_column just needs to be truthy for a Series.
+    """
+    if isinstance(data, pd.Series):
+        if sort_column:  # If sort_column is truthy, sort the Series.
+            data = data.sort_values(ascending=not sort_descending)
+        top_items = data.iloc[:num_rows]
+        others_sum = data.iloc[num_rows:].sum()
+        # Use pd.concat to combine the top items with the 'Other' sum
+        result = pd.concat([top_items, pd.Series([others_sum], index=[new_row_name])])
+    elif isinstance(data, pd.DataFrame):
+        if sort_column:
+            data = data.sort_values(by=sort_column, ascending=not sort_descending)
+        top_rows = data.iloc[:num_rows, :]
+        others_sum = data.iloc[num_rows:, :].sum(numeric_only=True)
+        others_row = pd.DataFrame([others_sum], index=[new_row_name])
+        # Use pd.concat to append 'Other' row to the DataFrame
+        result = pd.concat([top_rows, others_row])
+    else:
+        raise ValueError("Input must be a pandas DataFrame or Series")
+    
+    return result
+
+
+
+
+def add_total_row(data, total_row_name='Total'):
+    """
+    Adds a 'Total' row to a pandas Series or DataFrame.
+    
+    For a DataFrame, it sums all rows for each column and appends this as a new row named `total_row_name`.
+    For a Series, it sums all items and appends this sum as a new item with the index `total_row_name`.
+    
+    Parameters:
+    - data: The original pandas DataFrame or Series.
+    - total_row_name: The name of the new row/item to add with the total values. Default is 'Total'.
+    
+    Returns:
+    - The modified DataFrame or Series with the new 'Total' row/item.
+    
+    Sample Usage:
+    >>> df = pd.DataFrame({'A': [1, 2, 3], 'B': [4, 5, 6]})
+    >>> add_total_row(df)
+    >>> s = pd.Series([1, 2, 3])
+    >>> add_total_row(s)
+    """
+    if isinstance(data, pd.Series):
+        total_sum = data.sum()
+        # Use pd.concat to append 'Total' item to the Series
+        result = pd.concat([data, pd.Series([total_sum], index=[total_row_name])])
+    elif isinstance(data, pd.DataFrame):
+        total_sum = data.sum(numeric_only=True)
+        # Create a DataFrame for the 'Total' row to maintain dtype consistency
+        total_row = pd.DataFrame([total_sum], index=[total_row_name])
+        # Use pd.concat to append 'Total' row to the DataFrame
+        result = pd.concat([data, total_row], ignore_index=False)
+    else:
+        raise ValueError("Input must be a pandas DataFrame or Series")
+    
+    return result
