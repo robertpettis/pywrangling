@@ -512,3 +512,57 @@ def add_total_row(data, total_row_name='Total'):
         raise ValueError("Input must be a pandas DataFrame or Series")
     
     return result
+
+
+def move_row(df, row_to_move, pos='last', ref_row=None):
+    """
+    Move a row in a DataFrame to a specified position without altering the original index.
+
+    Parameters:
+    df (pd.DataFrame): DataFrame to modify.
+    row_to_move: Index label of the row to move. Can be int or string based on DataFrame's index.
+    pos (str or int, optional): Position to move the row to. Can be 'first', 'last', 'before', 'after', or an integer
+        indicating the position in the index list. If 'before' or 'after', ref_row must be provided. Defaults to 'last'.
+    ref_row: Reference row index label for 'before' or 'after' positions. Required if pos is 'before' or 'after'.
+
+    Returns:
+    pd.DataFrame: DataFrame with the row moved to the specified position, maintaining original index.
+    """
+    # Ensure handling of both integer-based and label-based indices
+    if isinstance(row_to_move, int) and isinstance(df.index, pd.RangeIndex):
+        row_label = df.index[row_to_move]
+    else:
+        row_label = row_to_move
+    
+    # Extract the row to be moved
+    row = df.loc[[row_label]]
+    
+    # Drop the row from its current position
+    df_copy = df.drop(row_label)
+    
+    if pos == 'first':
+        # Concatenate the row at the beginning
+        new_df = pd.concat([row, df_copy], sort=False)
+    elif pos == 'last':
+        # Concatenate the row at the end
+        new_df = pd.concat([df_copy, row], sort=False)
+    elif (pos == 'before' or pos == 'after') and ref_row is not None:
+        # Find the insertion point for 'before' or 'after'
+        all_rows = df_copy.index.tolist()
+        ref_index = all_rows.index(ref_row)
+        if pos == 'before':
+            new_index = all_rows[:ref_index] + [row_label] + all_rows[ref_index:]
+        else:  # pos == 'after'
+            new_index = all_rows[:ref_index + 1] + [row_label] + all_rows[ref_index + 1:]
+        new_df = df.reindex(new_index)
+    elif isinstance(pos, int):
+        # Handle integer position
+        all_rows = df_copy.index.tolist()
+        all_rows.insert(pos, row_label)
+        new_df = df.reindex(all_rows)
+    else:
+        new_df = df  # If position not recognized, return original DataFrame
+    
+    return new_df
+
+
