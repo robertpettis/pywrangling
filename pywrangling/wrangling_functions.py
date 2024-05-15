@@ -566,3 +566,30 @@ def move_row(df, row_to_move, pos='last', ref_row=None):
     return new_df
 
 
+
+
+def find_columns_with_substring(df, substring, case_sensitive=True):
+    """
+    Returns a list of column names where at least one value in the column contains the specified substring.
+
+    Args:
+    df (pd.DataFrame): The DataFrame to search through.
+    substring (str): The substring to search for in the column values.
+
+    Returns:
+    list: A list of column names where values contain the substring.
+    """
+    # Adjust case sensitivity in the search
+    if case_sensitive:
+        matching_columns = [col for col in df.columns if df[col].astype(str).str.contains(substring).any()]
+    else:
+        matching_columns = [col for col in df.columns if df[col].astype(str).str.contains(substring, case=False).any()]
+    return matching_columns
+
+
+
+
+
+
+
+
