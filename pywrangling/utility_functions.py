@@ -14,6 +14,8 @@ from email.mime.text import MIMEText
 import xml.etree.ElementTree as ET  # XML parsing library
 import pandas as pd  # Data analysis and manipulation tool
 import os
+from datetime import datetime, time  # For date and time handling
+import pytz  # For timezone handling
 
 # %% Functions
 def relative_path(relative_path):
@@ -211,6 +213,32 @@ def load_file_content(file_path):
 
 
 
+# Returns a boolean value. Main usage will be assisting in performing a particular function based on the day. 
+def is_time_in_range(day_time_pairs, timezone):
+    """
+    Check if the current time falls within any of the given day and time pairs.
 
+    Parameters:
+    day_time_pairs (dict): A dictionary where keys are days of the week ('Monday', 'Tuesday', ...) and values are lists of tuples with start and end times in HH:MM format.
+    timezone (str): The time zone to consider for the current time.
 
+    Returns:
+    bool: True if the current time is within any of the specified day and time ranges, otherwise False.
+    """
+    # Get the current time in the specified timezone
+    tz = pytz.timezone(timezone)
+    now = datetime.now(tz)
+    current_day = now.strftime('%A')
+    current_time = now.time()
+
+    if current_day in day_time_pairs:
+        for start_str, end_str in day_time_pairs[current_day]:
+            start_time = datetime.strptime(start_str, "%H:%M").time()
+            end_time = datetime.strptime(end_str, "%H:%M").time()
+            
+            # Check if the current time falls within the time range
+            if start_time <= current_time <= end_time:
+                return True
+    
+    return False
 
