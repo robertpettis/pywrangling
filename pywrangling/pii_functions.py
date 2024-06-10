@@ -76,6 +76,10 @@ def repersonalize(data, seed=None):
     result = ''.join(shift_letter(char, letter_offset) if char.isalpha() else offset_digit(char, digit_offset) if char.isdigit() else char for char in data_str)
     return result
 
+# Example usage with a DataFrame
+data = {'Person_ID': [12345, 67890]}
+df = pd.DataFrame(data)
+
 
 
 
