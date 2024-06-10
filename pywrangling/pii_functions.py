@@ -39,8 +39,8 @@ def depersonalize(data, seed=None):
         letter_offset = random.randint(1, 25)  # Offset between 1 and 25 for letters
         digit_offset = random.randint(1, 9)    # Offset between 1 and 9 for digits
 
-    # Depersonalize letters and digits
-    result = ''.join(shift_letter(char, letter_offset) if char.isalpha() else offset_digit(char, digit_offset) if char.isdigit() else char for char in data)
+    data_str = str(data)
+    result = ''.join(shift_letter(char, letter_offset) if char.isalpha() else offset_digit(char, digit_offset) if char.isdigit() else char for char in data_str)
     return result
 
 def repersonalize(data, seed=None):
@@ -72,8 +72,8 @@ def repersonalize(data, seed=None):
         letter_offset = random.randint(1, 25)  # Offset between 1 and 25 for letters
         digit_offset = random.randint(1, 9)    # Offset between 1 and 9 for digits
 
-    # Repersonalize letters and digits
-    result = ''.join(shift_letter(char, letter_offset) if char.isalpha() else offset_digit(char, digit_offset) if char.isdigit() else char for char in data)
+    data_str = str(data)
+    result = ''.join(shift_letter(char, letter_offset) if char.isalpha() else offset_digit(char, digit_offset) if char.isdigit() else char for char in data_str)
     return result
 
 
