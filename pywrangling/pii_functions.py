@@ -6,117 +6,77 @@ import string  # For alphabet string manipulation
 
 # %% Functions
 
-def depersonalize_numbers(data, seed=None):
+import random
+import string
+import re
+
+def depersonalize(data, seed=None):
     """
-    Depersonalize data by adding a random offset to each digit, based on the seed.
+    Depersonalize data by shifting letters and adding an offset to digits based on the seed.
 
     Parameters:
-    data (int, float, str): The data to be depersonalized. Can be a number or a string.
+    data (str): The data to be depersonalized.
     seed (int, optional): A seed for the random number generator to determine the offset.
 
     Returns:
-    int, float, str: The depersonalized data.
+    str: The depersonalized data.
 
     Usage:
-    >>> depersonalize_numbers(11234323, seed=42)
-    >>> depersonalize_numbers("124rf234", seed=42)
+    >>> depersonalize("Hello123", seed=42)
     """
-    def offset_digit(digit, offset):
-        return str((int(digit) + offset) % 10)
+    def shift_letter(letter, letter_offset):
+        if letter.isalpha():
+            alphabet = string.ascii_uppercase if letter.isupper() else string.ascii_lowercase
+            new_position = (alphabet.index(letter) + letter_offset) % 26
+            return alphabet[new_position]
+        return letter
+
+    def offset_digit(digit, digit_offset):
+        return str((int(digit) + digit_offset) % 10)
 
     if seed is not None:
         random.seed(seed)
-        offset = random.randint(1, 9)  # Offset between 1 and 9
+        letter_offset = random.randint(1, 25)  # Offset between 1 and 25 for letters
+        digit_offset = random.randint(1, 9)    # Offset between 1 and 9 for digits
 
-    if isinstance(data, (int, float)):
-        return int("".join(offset_digit(d, offset) for d in str(data)))
-    elif isinstance(data, str):
-        return re.sub(r'\d', lambda x: offset_digit(x.group(), offset), data)
+    # Depersonalize letters and digits
+    result = ''.join(shift_letter(char, letter_offset) if char.isalpha() else offset_digit(char, digit_offset) if char.isdigit() else char for char in data)
+    return result
 
-    return data
-
-def repersonalize_numbers(data, seed=None):
+def repersonalize(data, seed=None):
     """
     Reverse the depersonalization process to retrieve the original data.
 
     Parameters:
-    data (int, float, str): The depersonalized data to be repersonalized.
+    data (str): The depersonalized data to be repersonalized.
     seed (int, optional): The same seed used in the depersonalization process.
 
     Returns:
-    int, float, str: The original data.
+    str: The original data.
 
     Usage:
-    >>> repersonalize_numbers(95822412, seed=42)
-    >>> repersonalize_numbers("104rf332", seed=42)
+    >>> repersonalize("Ifmmp234", seed=42)
     """
-    def offset_digit(digit, offset):
-        return str((int(digit) - offset) % 10)
-
-    if seed is not None:
-        random.seed(seed)
-        offset = random.randint(1, 9)  # Offset between 1 and 9
-
-    if isinstance(data, (int, float)):
-        return int("".join(offset_digit(d, offset) for d in str(data)))
-    elif isinstance(data, str):
-        return re.sub(r'\d', lambda x: offset_digit(x.group(), offset), data)
-
-    return data
-
-def depersonalize_letters(data, seed=None):
-    """
-    Depersonalize letters in the given string by shifting them a random offset based on the seed.
-
-    Parameters:
-    data (str): The string to be depersonalized.
-    seed (int, optional): A seed for the random number generator to determine the offset.
-
-    Returns:
-    str: The depersonalized string.
-
-    Usage:
-    >>> depersonalize_letters("Hello World", seed=42)
-    """
-    def shift_letter(letter, offset):
+    def shift_letter(letter, letter_offset):
         if letter.isalpha():
             alphabet = string.ascii_uppercase if letter.isupper() else string.ascii_lowercase
-            new_position = (alphabet.index(letter) + offset) % 26
+            new_position = (alphabet.index(letter) - letter_offset) % 26
             return alphabet[new_position]
         return letter
 
-    if seed is not None:
-        random.seed(seed)
-        offset = random.randint(1, 25)  # Offset between 1 and 25
-
-    return ''.join(shift_letter(l, offset) for l in data)
-
-def repersonalize_letters(data, seed=None):
-    """
-    Reverse the depersonalization process to retrieve the original string.
-
-    Parameters:
-    data (str): The depersonalized string to be repersonalized.
-    seed (int, optional): The same seed used in the depersonalization process.
-
-    Returns:
-    str: The original string.
-
-    Usage:
-    >>> repersonalize_letters("Ifmmp Xpsme", seed=42)
-    """
-    def shift_letter(letter, offset):
-        if letter.isalpha():
-            alphabet = string.ascii_uppercase if letter.isupper() else string.ascii_lowercase
-            new_position = (alphabet.index(letter) - offset) % 26
-            return alphabet[new_position]
-        return letter
+    def offset_digit(digit, digit_offset):
+        return str((int(digit) - digit_offset) % 10)
 
     if seed is not None:
         random.seed(seed)
-        offset = random.randint(1, 25)  # Offset between 1 and 25
+        letter_offset = random.randint(1, 25)  # Offset between 1 and 25 for letters
+        digit_offset = random.randint(1, 9)    # Offset between 1 and 9 for digits
 
-    return ''.join(shift_letter(l, offset) for l in data)
+    # Repersonalize letters and digits
+    result = ''.join(shift_letter(char, letter_offset) if char.isalpha() else offset_digit(char, digit_offset) if char.isdigit() else char for char in data)
+    return result
+
+
 
 
 def shuffle_column_values(values, seed=None):
