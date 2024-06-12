@@ -6,9 +6,7 @@ import string  # For alphabet string manipulation
 
 # %% Functions
 
-import random
-import string
-import re
+
 
 def depersonalize(data, seed=None):
     """
@@ -75,10 +73,6 @@ def repersonalize(data, seed=None):
     data_str = str(data)
     result = ''.join(shift_letter(char, letter_offset) if char.isalpha() else offset_digit(char, digit_offset) if char.isdigit() else char for char in data_str)
     return result
-
-# Example usage with a DataFrame
-data = {'Person_ID': [12345, 67890]}
-df = pd.DataFrame(data)
 
 
 
