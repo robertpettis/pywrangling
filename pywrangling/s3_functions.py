@@ -17,6 +17,8 @@ from datetime import datetime
 from dateutil.tz import tzlocal
 
 """The main use for this is to collect the names of files already crawled so that an inturrupted crawl doesnt start from scratch."""
+
+
 def s3_glob(s3_client, bucket_name, subfolder_path, extensions):
     """
     Returns a DataFrame with names of all files with given extensions or no extension from the specified S3 bucket and subfolder.
@@ -35,7 +37,7 @@ def s3_glob(s3_client, bucket_name, subfolder_path, extensions):
     """
     # Paginator to handle more than 1000 files
     paginator = s3_client.get_paginator('list_objects_v2')
-    operation_parameters = {'Bucket': bucket_name, 'Prefix': subfolder_path}
+    operation_parameters = {'Bucket': bucket_name, 'Prefix': subfolder_path if subfolder_path else ''}
     page_iterator = paginator.paginate(**operation_parameters)
 
     filenames = []
@@ -82,7 +84,7 @@ def download_files_from_s3(s3_client, bucket_name, subfolder_path, extensions, s
 
     # Paginator to handle more than 1000 files
     paginator = s3_client.get_paginator('list_objects_v2')
-    operation_parameters = {'Bucket': bucket_name, 'Prefix': subfolder_path}
+    operation_parameters = {'Bucket': bucket_name, 'Prefix': subfolder_path if subfolder_path else ''}
     page_iterator = paginator.paginate(**operation_parameters)
 
     file_keys = []
@@ -144,12 +146,15 @@ def download_file_from_s3(s3_client, bucket_name, subfolder_path, file_name, des
     download_file_from_s3(s3, 'mybucket', 'data/subfolder', 'myfile.csv', '/local/path')
     """
 
-    # Check for missing values
-    if not all([bucket_name, subfolder_path, file_name, destination_directory]):
+    # Check for missing values (excluding subfolder_path)
+    if not all([bucket_name, file_name, destination_directory]):
         return "Missing one or more required parameters."
 
     # Construct the full file path in the S3 bucket
-    full_file_path = os.path.join(subfolder_path, file_name)
+    if subfolder_path:
+        full_file_path = os.path.join(subfolder_path, file_name)
+    else:
+        full_file_path = file_name  # File is in the root directory
 
     # Construct the full path for the destination file
     destination_file_path = os.path.join(destination_directory, file_name)
@@ -160,9 +165,6 @@ def download_file_from_s3(s3_client, bucket_name, subfolder_path, file_name, des
         return destination_file_path
     except Exception as e:
         return f"An error occurred: {e}"
-
-
-
 
 
 
@@ -246,6 +248,55 @@ def s3_filter_processed_files(s3_client, dataframe,  paginator, filename_col, bu
 
     # Drop rows where the filename exists in S3
     return dataframe[~dataframe[filename_col].isin(existing_files)]
+
+
+
+
+
+
+
+def upload_file_to_s3(s3_client, bucket_name, subfolder_path, local_file_path):
+    """
+    Uploads a file from the local file system to a specified path in an S3 bucket.
+
+    Parameters:
+    s3_client (boto3.client): The S3 client.
+    bucket_name (str): The name of the S3 bucket.
+    subfolder_path (str): The path to the subfolder within the bucket where the file will be stored.
+    local_file_path (str): The path to the file on the local file system.
+
+    Returns:
+    str: The S3 path of the uploaded file or an error message.
+
+    Example:
+    s3 = boto3.client('s3', aws_access_key_id='YOUR_ACCESS_KEY', aws_secret_access_key='YOUR_SECRET_KEY')
+    upload_file_to_s3(s3, 'my-bucket', 'my/subfolder/', '/path/to/myfile.txt')
+    """
+
+    # Extract the file name from the local file path
+    file_name = os.path.basename(local_file_path)
+
+    # Ensure the subfolder path ends with a '/'
+    if not subfolder_path.endswith('/'):
+        subfolder_path += '/'
+
+    # Construct the full S3 path (key) for the file
+    s3_path = f"{subfolder_path}{file_name}"
+
+    try:
+        # Perform the upload
+        s3_client.upload_file(local_file_path, bucket_name, s3_path)
+        return f"File uploaded successfully to: s3://{bucket_name}/{s3_path}"
+    except Exception as e:
+        return f"An error occurred during upload: {e}"
+
+
+
+
+
+
+
+
 
 
 
@@ -357,41 +408,4 @@ def s3_filter_processed_files(s3_client, dataframe,  paginator, filename_col, bu
 #     # Print overall average per hour and per day
 #     print(f"Overall average modifications per hour: {hourly_avg_per_day.mean()}")
 #     print(f"Overall average modifications per day: {daily_average}")
-
-
-
-def upload_file_to_s3(s3_client, bucket_name, subfolder_path, local_file_path):
-    """
-    Uploads a file from the local file system to a specified path in an S3 bucket.
-
-    Parameters:
-    s3_client (boto3.client): The S3 client.
-    bucket_name (str): The name of the S3 bucket.
-    subfolder_path (str): The path to the subfolder within the bucket where the file will be stored.
-    local_file_path (str): The path to the file on the local file system.
-
-    Returns:
-    str: The S3 path of the uploaded file or an error message.
-
-    Example:
-    s3 = boto3.client('s3', aws_access_key_id='YOUR_ACCESS_KEY', aws_secret_access_key='YOUR_SECRET_KEY')
-    upload_file_to_s3(s3, 'my-bucket', 'my/subfolder/', '/path/to/myfile.txt')
-    """
-
-    # Extract the file name from the local file path
-    file_name = os.path.basename(local_file_path)
-
-    # Ensure the subfolder path ends with a '/'
-    if not subfolder_path.endswith('/'):
-        subfolder_path += '/'
-
-    # Construct the full S3 path (key) for the file
-    s3_path = f"{subfolder_path}{file_name}"
-
-    try:
-        # Perform the upload
-        s3_client.upload_file(local_file_path, bucket_name, s3_path)
-        return f"File uploaded successfully to: s3://{bucket_name}/{s3_path}"
-    except Exception as e:
-        return f"An error occurred during upload: {e}"
 
