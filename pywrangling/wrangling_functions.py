@@ -201,8 +201,10 @@ def replace(df, column, new_value, condition):
         shift = -int(re.findall(r'\[n([+-]?\d+)\]', original)[0])  # Negate the shift to align with Python's shift behavior
         df_condition[shifted_col_name] = df[col].shift(shift)
 
-    mask = df_condition.eval(condition_string)
-
+    # Handling string comparisons separately
+    eval_condition = re.sub(r"\s*==\s*'(\w+)'\s*", r" == '\1' ", condition_string)
+    mask = df_condition.eval(eval_condition)
+    
     if isinstance(new_value, str) and '[n' in new_value:
         new_value_shift = -int(re.findall(r'\[n([+-]?\d+)\]', new_value)[0])  # Negate the shift to align with Python's shift behavior
         new_value = re.sub(r'\[n([+-]?\d+)\]', '', new_value)
@@ -216,7 +218,6 @@ def replace(df, column, new_value, condition):
     replaced_count = (df[column] != original_column).sum()
 
     print(f'({replaced_count} real changes made)')
-
     return df
 
 
