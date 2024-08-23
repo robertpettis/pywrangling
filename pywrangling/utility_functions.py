@@ -72,6 +72,15 @@ def relative_path(relative_path):
 
     Raises:
     - ValueError: If the current working directory is not set or if the path is invalid.
+
+    Example:
+    Suppose your current working directory is `/home/user/projects`, and you want to generate an absolute path to a file located at `../data/file.txt`.
+
+    >>> full_path = relative_path('../data/file.txt')
+    >>> print(full_path)
+    /home/user/data/file.txt
+    
+    In this example, the function generates the absolute path `/home/user/data/file.txt` from the relative path `../data/file.txt`.
     """
 
     # Check if the current working directory is set
@@ -82,12 +91,8 @@ def relative_path(relative_path):
     # Generate the full path
     full_path = os.path.abspath(os.path.join(cwd, relative_path))
     
-    # Optionally, check if the path exists, and if not, raise an error or handle accordingly
-    # This part depends on whether you want to ensure the path exists or if you're okay with creating it later
-    # if not os.path.exists(os.path.dirname(full_path)):
-    #     raise ValueError("The specified path does not exist.")
-    
     return full_path
+
 
 
 def send_email_or_text(subject, body, sender, recipients, password):
@@ -163,62 +168,6 @@ def fetch_arguments(default_values):
         arguments = default_values
     
     return arguments
-
-
-
-
-
-
-# %% Convert XML to a dataframe
-
-# I imagine different structures may not work, but this is a start. I won't 
-# Advertise this in the readme though. 
-
-def xml_file_to_dataframe(file_path):
-    """
-    Convert any XML file to a pandas DataFrame.
-
-    Parameters:
-    - file_path (str): The path to the XML file.
-
-    Returns:
-    - df (DataFrame): The resulting pandas DataFrame.
-    """
-
-    # Parse the XML file
-    tree = ET.parse(file_path)
-    root = tree.getroot()
-
-    # Assuming that all children of the root have the same structure,
-    # get the list of attribute names (columns) from the first grandchild
-    if len(root) == 0 or len(root[0]) == 0:
-        return pd.DataFrame()  # Return an empty DataFrame if there are no children or grandchildren
-
-    columns = list(root[0][0].attrib.keys())
-
-    # Extract data from the XML
-    data = []
-    for child in root:
-        for grandchild in child:
-            row_data = []
-            for col in columns:
-                value = grandchild.get(col)
-                # Try to convert the value to an integer, if not leave it as is
-                try:
-                    value = int(value)
-                except (ValueError, TypeError):
-                    pass
-                row_data.append(value)
-            data.append(row_data)
-
-    # Convert the data to a pandas DataFrame
-    df = pd.DataFrame(data, columns=columns)
-
-    return df
-
-
-
-
 
 
 
