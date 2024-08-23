@@ -18,6 +18,48 @@ from datetime import datetime, time  # For date and time handling
 import pytz  # For timezone handling
 
 # %% Functions
+
+
+def find_columns_in_csv(directory: str, search_value: str, case_sensitive: bool = True):
+    """
+    Searches all CSV files in the given directory for columns that contain the search_value in their names.
+    Returns a list of tuples with the file name and the matching column name.
+    
+    :param directory: Path to the directory containing the CSV files
+    :param search_value: Value to search for in column names
+    :param case_sensitive: Boolean indicating whether the search should be case-sensitive (default is True)
+    :return: List of tuples with the file name and matching column name
+    """
+    results = []
+
+    # Iterate over all files in the given directory
+    for file_name in os.listdir(directory):
+        # Check if the file is a CSV file
+        if file_name.endswith('.csv'):
+            file_path = os.path.join(directory, file_name)
+            
+            # Attempt to read only the column names of the CSV file with various encodings
+            for encoding in ['utf-8', 'ISO-8859-1', 'cp1252']:
+                try:
+                    df = pd.read_csv(file_path, encoding=encoding, nrows=0)
+                    break  # Exit the loop if reading was successful
+                except UnicodeDecodeError:
+                    continue  # Try the next encoding
+            
+            # Check each column name for the search value
+            for column in df.columns:
+                if case_sensitive:
+                    if search_value in column:
+                        results.append((file_name, column))
+                else:
+                    if search_value.lower() in column.lower():
+                        results.append((file_name, column))
+    
+    return results
+
+
+
+
 def relative_path(relative_path):
     """
     Generate a full file path from a relative path based on the current working directory.
