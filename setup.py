@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="pywrangling",
-    version="0.36.1",
+    version="0.36.1.1",
     packages=find_packages(),
     install_requires=[
         'pandas',
@@ -15,7 +15,7 @@ setup(
         'openai',
         'scipy',
         'selenium',
-        'selenium-wire'
+        'selenium-wire',
         'boto3',
         'pymysql',
         'sqlalchemy',
