@@ -134,11 +134,175 @@ def process_tex_files(folder_path):
             print(f"Processed {filename}")
 
 
+
+def data_to_latex(data, column_name=None, caption="Table", label=None, note=None, 
+                  caption_position='above', minipage_size=0.5, 
+                  total_row=False, percent_row=False, 
+                  total_column=False, percent_column=False, 
+                  resize_width=None):
+    """
+    Generate a LaTeX table from either a pandas Series or DataFrame.
+
+    Parameters
+    ----------
+    data : pandas.Series or pandas.DataFrame
+        Data to be converted into a LaTeX table. Usually from pandas value_counts() or crosstab() methods.
+    column_name : str, optional
+        Name of the column represented by value_counts. Required if data is a Series.
+    caption : str, optional
+        Caption for the table. Default is "Table".
+    label : str, optional
+        Label for the table. Default is None.
+    note : str, optional
+        Note for the table. Default is None.
+    caption_position : str, optional
+        Position of the caption, either 'above' or 'below'. Default is 'above'.
+    minipage_size : float, optional
+        The size of the minipage as a fraction of the line width. Default is 0.5.
+    total_row : bool, optional
+        Include a total row at the end of the table. Default is False.
+    percent_row : bool, optional
+        Include a percentage row at the end of the table. Default is False.
+    total_column : bool, optional
+        Include a total column at the end of the table. Default is False.
+    percent_column : bool, optional
+        Include a percentage column at the end of the table. Default is False.
+    resize_width : str, optional
+        A string representing the width to resize the table to, e.g., '0.8\\textwidth'. 
+        If None, no resizing is applied. Default is None.
+
+    Returns
+    -------
+    str
+        LaTeX table.
+    """
+
+    # Check if data is a Series (value_counts) or DataFrame (crosstab)
+    is_series = isinstance(data, pd.Series)
+    is_dataframe = isinstance(data, pd.DataFrame)
+
+    # ====== Series Handling (Value Counts) ======
+    if is_series:
+        if column_name is None:
+            raise ValueError("column_name is required when data is a Series.")
+
+        total_count = data.sum() if percent_row or total_row else None
+
+        formatted_values = []
+        for index, count in data.iteritems():
+            formatted_count = f"{count:,}"
+            if percent_row:
+                percent_value = f"{count / total_count:.1%}".replace('%', '\\%')
+                formatted_values.append(f"{index} & {formatted_count} & {percent_value}\\\\\n")
+            else:
+                formatted_values.append(f"{index} & {formatted_count}\\\\\n")
+            
+            # Add midrule before Total row
+            if index == 'Total':
+                formatted_values[-1] = "\\midrule\n" + formatted_values[-1]
+
+        headers = f"{column_name} & Count"
+        headers += " & Percentage" if percent_row else ""
+
+    # ====== DataFrame Handling (Crosstab) ======
+    elif is_dataframe:
+        if total_column:
+            data['Total'] = data.sum(axis=1)
+        if total_row:
+            data.loc['Total'] = data.sum()
+
+        if percent_column:
+            df_percent = data.div(data.sum(axis=1), axis=0) * 100
+            df_percent = df_percent.applymap(lambda x: f"{x:.1f}\\%" if isinstance(x, (int, float)) else x)
+            data = pd.concat([data, df_percent], axis=1)
+
+        if percent_row:
+            df_percent_row = (data.loc['Total'] / data.loc['Total'].sum()) * 100
+            data.loc['Percent'] = df_percent_row.apply(lambda x: f"{x:.1f}\\%")
+
+        data = data.applymap(lambda x: f"{x:,.0f}" if isinstance(x, (int, float)) else x)
+
+        # Reset index to include it in the table
+        data_reset = data.reset_index()
+
+        headers = " & ".join([f"{col}" for col in data_reset.columns])
+        formatted_values = []
+
+        for i, row in enumerate(data_reset.itertuples(index=False, name=None)):
+            row_string = " & ".join(map(str, row)) + "\\\\"
+            
+            # Add midrule before Total row
+            if row[0] == 'Total' or (total_row and i == len(data_reset) - 2):
+                row_string = "\\midrule\n" + row_string
+
+            formatted_values.append(row_string)
+
+    else:
+        raise ValueError("Data must be a pandas Series or DataFrame.")
+
+    # ====== Common LaTeX Table Generation ======
+    table = "\\begin{table}[H]\n"
+    table += "\\begin{center}\n"
+    table += f"\\begin{{minipage}}{{{minipage_size}\\linewidth}}\n"
+    table += "\\centering\n"
+
+    if resize_width:
+        table += f"\\resizebox{{{resize_width}}}{{!}}{{%\n"
+
+    # Dynamic column format based on the number of columns
+    column_format = "l" + "r" * (headers.count('&') + 1)
+    table += f"\\begin{{tabular}}{{{column_format}}}\n"
+    table += "\\hline\n"
+    table += f"{headers} \\\\\n"
+    table += "\\midrule\n"
+
+    # Add formatted rows to the table
+    for value in formatted_values:
+        table += f"{value}\n"
+
+    table += "\\hline\n"
+    table += "\\hline\n"
+    table += "\\end{tabular}\n"
+
+    if resize_width:
+        table += "}% end resizebox\n"
+
+    table += "\\end{minipage}\n"
+
+    # Add caption, label, and note
+    if caption_position == 'above':
+        table += f"\\caption{{{caption}}}\n"
+        if label:
+            table += f"\\label{{{label}}}\n"
+    if note:
+        table += "\\vspace{.2cm}\n"
+        table += "\\begin{tabular}{@{}p{0.9\\linewidth}@{}}\n"
+        table += f"\\small {note}\n"
+        table += "\\end{tabular}\n"
+        table += "\\vspace{.1cm}\n"
+    if caption_position == 'below':
+        table += f"\\caption{{{caption}}}\n"
+        if label:
+            table += f"\\label{{{label}}}\n"
+
+    table += "\\end{center}\n"
+    table += "\\end{table}\n"
+
+    return table
+
+
+
+
+
+
+
+
 def value_counts_to_latex(value_counts, column_name, order=None, caption="Value Counts", 
                           label=None, note=None, caption_position='above', 
                           total=False, percent=False):
     """
     Generate LaTeX table from pandas value_counts() with options for total and percentage columns.
+    THIS FUNCTION IS DEPRECATED AND WILL BE REMOVED IN A FUTURE UPDATE.
 
     Parameters
     ----------
@@ -171,6 +335,8 @@ def value_counts_to_latex(value_counts, column_name, order=None, caption="Value 
     >>> df['column'].value_counts().pipe(value_counts_to_latex, 'column', total=True, percent=True)
     """
     
+    print("WARNING: 'value_counts_to_latex' is deprecated and will be removed in a future update. Please use 'data_to_latex' instead.")
+
     if percent or total:
         total_count = value_counts.sum()
 
@@ -246,6 +412,7 @@ def crosstab_to_latex(df, caption="Crosstab Table", label=None, note=None,
                       total_column=False, percent_column=False, resize_width=None):
     """
     Generate LaTeX table from a pandas crosstab DataFrame with options for total and percentage rows and columns.
+    THIS FUNCTION IS DEPRECATED AND WILL BE REMOVED IN A FUTURE UPDATE.
 
     Parameters
     ----------
@@ -278,6 +445,8 @@ def crosstab_to_latex(df, caption="Crosstab Table", label=None, note=None,
     str
         LaTeX table.
     """
+
+    print("WARNING: 'crosstab_to_latex' is deprecated and will be removed in a future update. Please use 'data_to_latex' instead.")
 
     def format_with_commas(x):
           if isinstance(x, (int, float)):
@@ -353,6 +522,7 @@ def crosstab_to_latex(df, caption="Crosstab Table", label=None, note=None,
     table += "\\end{table}\n"
 
     return table
+
 
 
 
