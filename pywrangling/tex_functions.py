@@ -135,11 +135,11 @@ def process_tex_files(folder_path):
 
 
 
-def data_to_latex(data, column_name=None, caption="Table", label=None, note=None, 
+def data_to_latex(data, caption="Table", label=None, note=None, 
                   caption_position='above', minipage_size=0.5, 
                   total_row=False, percent_row=False, 
                   total_column=False, percent_column=False, 
-                  resize_width=None):
+                  resize_width=None, comment=None, series_column_name=None):
     """
     Generate a LaTeX table from either a pandas Series or DataFrame.
 
@@ -147,8 +147,6 @@ def data_to_latex(data, column_name=None, caption="Table", label=None, note=None
     ----------
     data : pandas.Series or pandas.DataFrame
         Data to be converted into a LaTeX table. Usually from pandas value_counts() or crosstab() methods.
-    column_name : str, optional
-        Name of the column represented by value_counts. Required if data is a Series.
     caption : str, optional
         Caption for the table. Default is "Table".
     label : str, optional
@@ -170,6 +168,10 @@ def data_to_latex(data, column_name=None, caption="Table", label=None, note=None
     resize_width : str, optional
         A string representing the width to resize the table to, e.g., '0.8\\textwidth'. 
         If None, no resizing is applied. Default is None.
+    comment : str, optional
+        A comment to be added after the table. Default is None.
+    series_column_name : str, optional
+        Name of the column represented by the Series (used if data is a Series). Required if data is a Series.
 
     Returns
     -------
@@ -183,8 +185,8 @@ def data_to_latex(data, column_name=None, caption="Table", label=None, note=None
 
     # ====== Series Handling (Value Counts) ======
     if is_series:
-        if column_name is None:
-            raise ValueError("column_name is required when data is a Series.")
+        if series_column_name is None:
+            raise ValueError("series_column_name is required when data is a Series.")
 
         total_count = data.sum() if percent_row or total_row else None
 
@@ -201,7 +203,7 @@ def data_to_latex(data, column_name=None, caption="Table", label=None, note=None
             if index == 'Total':
                 formatted_values[-1] = "\\midrule\n" + formatted_values[-1]
 
-        headers = f"{column_name} & Count"
+        headers = f"{series_column_name} & Count"
         headers += " & Percentage" if percent_row else ""
 
     # ====== DataFrame Handling (Crosstab) ======
@@ -288,8 +290,11 @@ def data_to_latex(data, column_name=None, caption="Table", label=None, note=None
     table += "\\end{center}\n"
     table += "\\end{table}\n"
 
-    return table
+    # Add the comment if provided
+    if comment:
+        table += f"% {comment}\n"
 
+    return table
 
 
 
