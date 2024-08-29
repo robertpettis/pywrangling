@@ -249,7 +249,7 @@ def data_to_latex(data, caption="Table", label=None, note=None,
     table += "\\centering\n"
 
     if resize_width:
-        table += f"\\resizebox{{{resize_width}}}{{!}}{{%\n"
+        table += f"\\resizebox{{{resize_width}\\linewidth}}{{!}}{{%\n"
 
     # Dynamic column format based on the number of columns
     column_format = "l" + "r" * (headers.count('&') + 1)
