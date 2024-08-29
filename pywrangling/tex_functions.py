@@ -136,10 +136,10 @@ def process_tex_files(folder_path):
 
 
 def data_to_latex(data, caption="Table", label=None, note=None, 
-                  caption_position='above', minipage_size=0.5, 
+                  caption_position='above', minipage_size=0.9,resize_width=0.9, 
                   total_row=False, percent_row=False, 
                   total_column=False, percent_column=False, 
-                  resize_width=None, comment=None, series_column_name=None):
+                   comment=None, series_column_name=None):
     """
     Generate a LaTeX table from either a pandas Series or DataFrame.
 
@@ -290,12 +290,12 @@ def data_to_latex(data, caption="Table", label=None, note=None,
     table += "\\end{center}\n"
     table += "\\end{table}\n"
 
+
     # Add the comment if provided
     if comment:
         table += f"% {comment}\n"
 
     return table
-
 
 
 
