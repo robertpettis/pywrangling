@@ -590,7 +590,38 @@ def panel_table(tables, caption, label, note=None):
 
 
 
-# Given folder path
-#folder_path = "D:\\Dropbox\\Placer DA\\Tables"
+def tex_percentage(df, column, is_decimal=False, decimals=2):
+    """
+    Convert a numerical column in a DataFrame to a LaTeX-friendly string format with percentages.
 
-#process_tex_files(folder_path)
+    Parameters:
+        df (pd.DataFrame): DataFrame containing the column to convert.
+        column (str): The name of the column to convert.
+        is_decimal (bool, optional): If True, the values in the column are treated as decimals (e.g., 0.1 for 10%).
+                                     If False, the values are treated as percentages (e.g., 10 for 10%). Default is False.
+        decimals (int, optional): The number of decimal places to round the values to. Default is 2.
+
+    Returns:
+        pd.DataFrame: The DataFrame with the specified column converted to LaTeX percentage strings.
+
+    Example:
+    >>> import pandas as pd
+    >>> df = pd.DataFrame({'value': [0.1, 0.25, 0.333]})
+    >>> df = tex_percentage(df, 'value', is_decimal=True, decimals=1)
+    >>> print(df)
+         value
+    0   10.0\%
+    1   25.0\%
+    2   33.3\%
+    """
+    # Convert the column to percentage if is_decimal is True
+    if is_decimal:
+        df[column] = df[column] * 100
+
+    # Round the values to the specified number of decimals
+    df[column] = df[column].round(decimals)
+
+    # Convert the values to strings and add a LaTeX-friendly percent sign
+    df[column] = df[column].astype(str) + r'\%'
+
+    return df
