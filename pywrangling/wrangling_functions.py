@@ -593,4 +593,27 @@ def find_columns_with_substring(df, substring, case_sensitive=True):
 
 
 
+# ##############################################################################
+# 🧩🧩🧩 METHODS SECTION 🧩🧩🧩
+# ##############################################################################
+
+
+
+
+
+"""
+If a future version of pandas introduces its own method called values_and_percent, this monkey-patched version could conflict with it, potentially leading to unexpected results.
+"""
+
+def values_and_percent(self):
+    """
+    Calculate the value counts and corresponding percentages of the Series.
+    
+    Returns:
+        pd.DataFrame: A DataFrame with counts and percentages.
+    """
+    counts = self.value_counts(dropna=False)
+    percentages = (counts / len(self) * 100).round(2)
+    return pd.DataFrame({'Count': counts, 'Percentage': percentages})
+
 
