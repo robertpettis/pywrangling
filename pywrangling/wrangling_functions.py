@@ -602,18 +602,39 @@ def find_columns_with_substring(df, substring, case_sensitive=True):
 
 
 """
+🚨🚨🚨
 If a future version of pandas introduces its own method called values_and_percent, this monkey-patched version could conflict with it, potentially leading to unexpected results.
+
+Same is true with any other monkey-patched method.
+🚨🚨🚨
 """
 
-def values_and_percent(self):
+def values_and_percent(self, decimals=2):
     """
     Calculate the value counts and corresponding percentages of the Series.
-    
+
+    Parameters:
+        decimals (int, optional): Number of decimal places to round the percentages to. Default is 2.
+
     Returns:
         pd.DataFrame: A DataFrame with counts and percentages.
+
+    Example:
+    >>> import pandas as pd
+    >>> data = pd.Series(['A', 'B', 'A', 'C', 'B', 'A'])
+    >>> data.values_and_percent()
+       Count  Percentage
+    A      3        50.0
+    B      2        33.33
+    C      1        16.67
+
+    >>> data.values_and_percent(decimals=1)
+       Count  Percentage
+    A      3        50.0
+    B      2        33.3
+    C      1        16.7
     """
     counts = self.value_counts(dropna=False)
-    percentages = (counts / len(self) * 100).round(2)
+    percentages = (counts / len(self) * 100).round(decimals)
     return pd.DataFrame({'Count': counts, 'Percentage': percentages})
-
 
