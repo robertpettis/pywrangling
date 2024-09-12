@@ -609,6 +609,10 @@ Same is true with any other monkey-patched method.
 🚨🚨🚨
 """
 
+# In pywrangling/wrangling_functions.py
+
+import pandas as pd
+
 def values_and_percent(self, decimals=2):
     """
     Calculate the value counts and corresponding percentages of the Series.
@@ -621,6 +625,9 @@ def values_and_percent(self, decimals=2):
 
     Example:
     >>> import pandas as pd
+    >>> # Extend pandas Series with the custom method
+    >>> pd.Series.values_and_percent = values_and_percent
+
     >>> data = pd.Series(['A', 'B', 'A', 'C', 'B', 'A'])
     >>> data.values_and_percent()
        Count  Percentage
@@ -638,3 +645,5 @@ def values_and_percent(self, decimals=2):
     percentages = (counts / len(self) * 100).round(decimals)
     return pd.DataFrame({'Count': counts, 'Percentage': percentages})
 
+# Extend the pandas Series class to include this method
+pd.Series.values_and_percent = values_and_percent
