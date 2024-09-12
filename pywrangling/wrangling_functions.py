@@ -624,9 +624,6 @@ def values_and_percent(self, decimals=2):
         pd.DataFrame: A DataFrame with counts and percentages.
 
     Example:
-    >>> import pandas as pd
-    >>> # Extend pandas Series with the custom method
-    >>> pd.Series.values_and_percent = values_and_percent
 
     >>> data = pd.Series(['A', 'B', 'A', 'C', 'B', 'A'])
     >>> data.values_and_percent()
