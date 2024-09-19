@@ -32,6 +32,20 @@ or for a given branch, such as the experimental Beta branch:
 pip install --upgrade git+https://github.com/robertpettis/pywrangling.git@Beta
 ```
 
+or for a given tag, such as `2024-01-18`:
+    
+```bash
+pip install --upgrade git+https://github.com/robertpettis/pywrangling.git@2024-01-18
+```
+
+or for a specific version, such as `0.39.2`:
+
+```bash
+pip install --upgrade git+https://github.com/robertpettis/pywrangling.git@0.39.2
+```
+
+
+
 Then, you can import the module in your Python script using:
 
 ## Usage
