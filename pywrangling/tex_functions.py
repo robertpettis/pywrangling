@@ -133,13 +133,14 @@ def process_tex_files(folder_path):
             
             print(f"Processed {filename}")
 
-
+# %% Create tables
 
 def data_to_latex(data, caption="Table", label=None, note=None, 
-                  caption_position='above', minipage_size=0.9,resize_width=0.9, 
+                  caption_position='above', minipage_size=0.9, resize_width=0.9, 
                   total_row=False, percent_row=False, 
                   total_column=False, percent_column=False, 
-                   comment=None, series_column_name=None):
+                  comment=None, series_column_name=None,
+                  custom_column_names=None, custom_column_widths=None):
     """
     Generate a LaTeX table from either a pandas Series or DataFrame.
 
@@ -156,7 +157,9 @@ def data_to_latex(data, caption="Table", label=None, note=None,
     caption_position : str, optional
         Position of the caption, either 'above' or 'below'. Default is 'above'.
     minipage_size : float, optional
-        The size of the minipage as a fraction of the line width. Default is 0.5.
+        The size of the minipage as a fraction of the line width. Default is 0.9.
+    resize_width : float, optional
+        A float representing the width to resize the table to, e.g., 0.9. If None, no resizing is applied. Default is 0.9.
     total_row : bool, optional
         Include a total row at the end of the table. Default is False.
     percent_row : bool, optional
@@ -165,32 +168,33 @@ def data_to_latex(data, caption="Table", label=None, note=None,
         Include a total column at the end of the table. Default is False.
     percent_column : bool, optional
         Include a percentage column at the end of the table. Default is False.
-    resize_width : str, optional
-        A string representing the width to resize the table to, e.g., '0.8\\textwidth'. 
-        If None, no resizing is applied. Default is None.
     comment : str, optional
         A comment to be added after the table. Default is None.
     series_column_name : str, optional
         Name of the column represented by the Series (used if data is a Series). Required if data is a Series.
+    custom_column_names : list of str, optional
+        Custom column names to override the default headers. Length should match the number of columns.
+    custom_column_widths : list of str, optional
+        Custom column widths for the tabular environment. Each entry should be a LaTeX width specifier like 'p{1.5cm}'.
 
     Returns
     -------
     str
         LaTeX table.
     """
-
+    
     # Check if data is a Series (value_counts) or DataFrame (crosstab)
     is_series = isinstance(data, pd.Series)
     is_dataframe = isinstance(data, pd.DataFrame)
-
+    
     # ====== Series Handling (Value Counts) ======
     if is_series:
         if series_column_name is None:
             raise ValueError("series_column_name is required when data is a Series.")
 
         total_count = data.sum() if percent_row or total_row else None
-
         formatted_values = []
+        
         for index, count in data.iteritems():
             formatted_count = f"{count:,}"
             if percent_row:
@@ -199,13 +203,12 @@ def data_to_latex(data, caption="Table", label=None, note=None,
             else:
                 formatted_values.append(f"{index} & {formatted_count}\\\\\n")
             
-            # Add midrule before Total row
             if index == 'Total':
                 formatted_values[-1] = "\\midrule\n" + formatted_values[-1]
 
         headers = f"{series_column_name} & Count"
         headers += " & Percentage" if percent_row else ""
-
+    
     # ====== DataFrame Handling (Crosstab) ======
     elif is_dataframe:
         if total_column:
@@ -223,25 +226,21 @@ def data_to_latex(data, caption="Table", label=None, note=None,
             data.loc['Percent'] = df_percent_row.apply(lambda x: f"{x:.1f}\\%")
 
         data = data.applymap(lambda x: f"{x:,.0f}" if isinstance(x, (int, float)) else x)
-
-        # Reset index to include it in the table
         data_reset = data.reset_index()
-
-        headers = " & ".join([f"{col}" for col in data_reset.columns])
+        
+        # Set custom column names if provided
+        headers = " & ".join(custom_column_names) if custom_column_names else " & ".join([f"{col}" for col in data_reset.columns])
         formatted_values = []
 
         for i, row in enumerate(data_reset.itertuples(index=False, name=None)):
             row_string = " & ".join(map(str, row)) + "\\\\"
-            
-            # Add midrule before Total row
             if row[0] == 'Total' or (total_row and i == len(data_reset) - 2):
                 row_string = "\\midrule\n" + row_string
-
             formatted_values.append(row_string)
-
+    
     else:
         raise ValueError("Data must be a pandas Series or DataFrame.")
-
+    
     # ====== Common LaTeX Table Generation ======
     table = "\\begin{table}[H]\n"
     table += "\\begin{center}\n"
@@ -251,14 +250,17 @@ def data_to_latex(data, caption="Table", label=None, note=None,
     if resize_width:
         table += f"\\resizebox{{{resize_width}\\linewidth}}{{!}}{{%\n"
 
-    # Dynamic column format based on the number of columns
-    column_format = "l" + "r" * (headers.count('&') + 1)
+    # Use custom column widths if provided
+    if custom_column_widths:
+        column_format = " ".join(custom_column_widths)
+    else:
+        column_format = "l" + "r" * (headers.count('&') + 1)
+    
     table += f"\\begin{{tabular}}{{{column_format}}}\n"
     table += "\\hline\n"
     table += f"{headers} \\\\\n"
     table += "\\midrule\n"
-
-    # Add formatted rows to the table
+    
     for value in formatted_values:
         table += f"{value}\n"
 
@@ -271,7 +273,6 @@ def data_to_latex(data, caption="Table", label=None, note=None,
 
     table += "\\end{minipage}\n"
 
-    # Add caption, label, and note
     if caption_position == 'above':
         table += f"\\caption{{{caption}}}\n"
         if label:
@@ -290,12 +291,11 @@ def data_to_latex(data, caption="Table", label=None, note=None,
     table += "\\end{center}\n"
     table += "\\end{table}\n"
 
-
-    # Add the comment if provided
     if comment:
         table += f"% {comment}\n"
 
     return table
+
 
 
 
