@@ -233,3 +233,57 @@ def is_time_in_range(day_time_pairs, timezone):
     
     return False
 
+
+
+
+
+
+
+def scan_for_string(directory, extensions, substring):
+    """
+    Scans the given directory for files with specified extensions
+    and checks if they contain a given substring.
+
+    Parameters:
+    - directory (str): The path to the directory to scan.
+    - extensions (list): A list of file extensions to include.
+    - substring (str): The substring to search for in the files.
+
+    Returns:
+    - list: A list of file paths that contain the substring.
+
+    Raises:
+    - ValueError: If a disallowed file extension is encountered.
+    """
+
+    # Define acceptable and disallowed extensions
+    acceptable_extensions = {'.sql', '.py', '.do', '.ipynb', '.js', '.html'}
+    disallowed_extensions = {'.xlsx', '.xls', '.csv'}
+
+    # Normalize extensions to lower case and ensure they start with a dot
+    extensions = {ext.lower() if ext.startswith('.') else f'.{ext.lower()}' for ext in extensions}
+
+    # Check for disallowed extensions
+    for ext in extensions:
+        if (ext in disallowed_extensions) | (ext not in acceptable_extensions):
+            raise ValueError(f"Extension '{ext}' is disallowed.")
+
+    matching_files = []
+
+    # Walk through the directory
+    for root, _, files in os.walk(directory):
+        for file in files:
+            file_ext = os.path.splitext(file)[1].lower()
+            if file_ext in extensions:
+                file_path = os.path.join(root, file)
+                try:
+                    with open(file_path, 'r', encoding='utf-8') as f:
+                        if substring in f.read():
+                            matching_files.append(file_path)
+                except Exception as e:
+                    print(f"Could not read file {file_path}: {e}")
+
+    return matching_files
+
+
+
