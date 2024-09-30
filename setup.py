@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="pywrangling",
-    version="0.39.2.0",
+    version="0.40",
     packages=find_packages(),
     install_requires=[
         'pandas',
@@ -19,6 +19,7 @@ setup(
         'boto3',
         'pymysql',
         'sqlalchemy',
-        'PyJWT'
+        'PyJWT',
+        'pyodbc'
     ],
 )
