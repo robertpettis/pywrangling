@@ -5,8 +5,6 @@ Author: Robert Pettis
 
 """
 
-
-
 # %% Importing required libraries
 import sys  # Library for system-specific parameters and functions
 import smtplib
@@ -16,6 +14,7 @@ import pandas as pd  # Data analysis and manipulation tool
 import os
 from datetime import datetime, time  # For date and time handling
 import pytz  # For timezone handling
+import inspect
 
 # %% Functions
 
@@ -287,3 +286,22 @@ def scan_for_string(directory, extensions, substring):
 
 
 
+def print_current_line():
+    """
+    Prints the line number of the code where this function is called.
+    
+    This function inspects the call stack to determine the line number 
+    of the line where it was invoked and prints it.
+
+    Example:
+        # On line 15 of your script, you call the function like this:
+        print_current_line()
+        # Output: 15
+    """
+    # Get the frame of the caller (the previous frame)
+    caller_frame = inspect.currentframe().f_back
+    # Get the line number of the caller
+    line_number = caller_frame.f_lineno
+    # Print the line number
+    print(f"{line_number}")
+    return line_number
