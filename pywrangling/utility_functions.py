@@ -305,3 +305,37 @@ def print_current_line():
     # Print the line number
     print(f"{line_number}")
     return line_number
+
+
+def cprint(text, text_color="red", bg_color="yellow"):
+    # Define color mappings
+    colors = {
+        "black": "\033[30m",
+        "red": "\033[31m",
+        "green": "\033[32m",
+        "yellow": "\033[33m",
+        "blue": "\033[34m",
+        "magenta": "\033[35m",
+        "cyan": "\033[36m",
+        "white": "\033[37m",
+    }
+
+    # Define background color mappings
+    bg_colors = {
+        "black": "\033[40m",
+        "red": "\033[41m",
+        "green": "\033[42m",
+        "yellow": "\033[43m",
+        "blue": "\033[44m",
+        "magenta": "\033[45m",
+        "cyan": "\033[46m",
+        "white": "\033[47m",
+    }
+
+    # Fetch the color codes, default to red text and yellow background
+    text_code = colors.get(text_color.lower(), "\033[31m")
+    bg_code = bg_colors.get(bg_color.lower(), "\033[43m")
+    reset_code = "\033[0m"
+
+    # Print the formatted text
+    print(f"{text_code}{bg_code}{text}{reset_code}")
