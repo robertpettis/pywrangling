@@ -1,2 +1,5 @@
+
 *.pyc
+
+# An example file
 test_cprint.py
