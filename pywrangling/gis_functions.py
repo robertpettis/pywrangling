@@ -13,7 +13,9 @@ import cartopy.crs as ccrs
 from typing import Tuple, List
 
 from shapely.ops import cascaded_union
-
+import random
+import time
+import shelve
 # %% Setup
 
 
@@ -21,107 +23,194 @@ from shapely.ops import cascaded_union
     
 
 # %% GEOCODING ################################################################
-# Initialize Nominatim geolocator
-geolocator = Nominatim(user_agent='my_custom_user_agent')
+"""
+I commented out the old version of this -- it was having some issues
+Current version appears to work. It doesn't use google though, so Ill 
+tweak the new version such that it will do that. But I want to leave 
+the old one for reference until the new one is built. 
+"""
 
 
-def geocode_with_progress(addresses, api_key=None, use_nominatim=False, use_google=False, batch_size=100):
-    # Validate the choice of geocoding services
-    if use_nominatim and use_google:
-        raise ValueError("Both `use_nominatim` and `use_google` cannot be True. Choose only one.")
+# Custom print function for errors
+def cprint(text, text_color="red", bg_color="yellow"):
+    colors = {
+        "black": "\033[30m", "red": "\033[31m", "green": "\033[32m",
+        "yellow": "\033[33m", "blue": "\033[34m", "magenta": "\033[35m",
+        "cyan": "\033[36m", "white": "\033[37m",
+    }
+    bg_colors = {
+        "black": "\033[40m", "red": "\033[41m", "green": "\033[42m",
+        "yellow": "\033[43m", "blue": "\033[44m", "magenta": "\033[45m",
+        "cyan": "\033[46m", "white": "\033[47m",
+    }
+    text_code = colors.get(text_color.lower(), "\033[31m")
+    bg_code = bg_colors.get(bg_color.lower(), "\033[43m")
+    reset_code = "\033[0m"
+    print(f"{text_code}{bg_code}{text}{reset_code}")
 
-    # Initialize geocoders
-    geolocator = Nominatim(user_agent="geoapiExercises") if use_nominatim or not use_google else None
-    gmaps = googlemaps.Client(key=api_key) if use_google or not use_nominatim else None
+# Generate a random User-Agent for Nominatim
+def generate_user_agent():
+    user_agents = [
+        "GeocodingApp/1.0 (contact@example.com)",
+        "MyNominatimTool/1.0 (contact@example.com)",
+        "SpatialDataProcessor/1.0 (contact@example.com)"
+    ]
+    return random.choice(user_agents)
+
+# Geocode a single address with Nominatim
+def geocode_nominatim(address, geolocator):
+    try:
+        location = geolocator.geocode(address, timeout=10)
+        time.sleep(1)  # Adhere to the 1 request per second limit
+        if location:
+            return (location.latitude, location.longitude)
+        return None
+    except GeocoderTimedOut as e:
+        cprint(f"Timeout error for address '{address}': {e}")
+        return None
+    except GeocoderServiceError as e:
+        cprint(f"Service error for address '{address}': {e}")
+        return None
+
+# Geocode a list of addresses with caching and progress
+def geocode_with_progress(addresses, cache_file="geocode_cache.db"):
+    geolocator = Nominatim(user_agent=generate_user_agent())
+    results = []
+    with shelve.open(cache_file) as cache:
+        for address in tqdm(addresses, desc="Geocoding"):
+            if address in cache:
+                results.append(cache[address])
+            else:
+                try:
+                    coord = geocode_nominatim(address, geolocator)
+                    cache[address] = coord
+                    results.append(coord)
+                except Exception as e:
+                    cprint(f"Error geocoding address '{address}': {e}")
+                    results.append(None)
+    return results
+
+# Example usage
+# if __name__ == "__main__":
+#     addresses = [
+#         "539 Rialto, San Bernardino, California 92408",
+#         "3850 Atlantic, San Bernardino, California 92346",
+#         "123 Main Street, Nowhere, California"
+#     ]
+
+#     print("Starting geocoding...")
+#     coordinates = geocode_with_progress(addresses)
+#     print("Geocoding completed.")
+
+#     # Display results
+#     for addr, coord in zip(addresses, coordinates):
+#         print(f"Address: {addr}, Coordinates: {coord}")
 
 
-    def cprint(text, text_color="red", bg_color="yellow"):
-        # Define color mappings
-        colors = {
-            "black": "\033[30m",
-            "red": "\033[31m",
-            "green": "\033[32m",
-            "yellow": "\033[33m",
-            "blue": "\033[34m",
-            "magenta": "\033[35m",
-            "cyan": "\033[36m",
-            "white": "\033[37m",
-        }
+
+
+
+# # Initialize Nominatim geolocator
+# geolocator = Nominatim(user_agent='my_custom_user_agent')
+
+
+# def geocode_with_progress(addresses, api_key=None, use_nominatim=False, use_google=False, batch_size=100):
+#     # Validate the choice of geocoding services
+#     if use_nominatim and use_google:
+#         raise ValueError("Both `use_nominatim` and `use_google` cannot be True. Choose only one.")
+
+#     # Initialize geocoders
+#     geolocator = Nominatim(user_agent="geoapiExercises") if use_nominatim or not use_google else None
+#     gmaps = googlemaps.Client(key=api_key) if use_google or not use_nominatim else None
+
+
+#     def cprint(text, text_color="red", bg_color="yellow"):
+#         # Define color mappings
+#         colors = {
+#             "black": "\033[30m",
+#             "red": "\033[31m",
+#             "green": "\033[32m",
+#             "yellow": "\033[33m",
+#             "blue": "\033[34m",
+#             "magenta": "\033[35m",
+#             "cyan": "\033[36m",
+#             "white": "\033[37m",
+#         }
     
-        # Define background color mappings
-        bg_colors = {
-            "black": "\033[40m",
-            "red": "\033[41m",
-            "green": "\033[42m",
-            "yellow": "\033[43m",
-            "blue": "\033[44m",
-            "magenta": "\033[45m",
-            "cyan": "\033[46m",
-            "white": "\033[47m",
-        }
+#         # Define background color mappings
+#         bg_colors = {
+#             "black": "\033[40m",
+#             "red": "\033[41m",
+#             "green": "\033[42m",
+#             "yellow": "\033[43m",
+#             "blue": "\033[44m",
+#             "magenta": "\033[45m",
+#             "cyan": "\033[46m",
+#             "white": "\033[47m",
+#         }
     
-        # Fetch the color codes, default to red text and yellow background
-        text_code = colors.get(text_color.lower(), "\033[31m")
-        bg_code = bg_colors.get(bg_color.lower(), "\033[43m")
-        reset_code = "\033[0m"
+#         # Fetch the color codes, default to red text and yellow background
+#         text_code = colors.get(text_color.lower(), "\033[31m")
+#         bg_code = bg_colors.get(bg_color.lower(), "\033[43m")
+#         reset_code = "\033[0m"
     
-        # Print the formatted text
-        print(f"{text_code}{bg_code}{text}{reset_code}")
+#         # Print the formatted text
+#         print(f"{text_code}{bg_code}{text}{reset_code}")
         
     
     
-    # Define geocoding functions
-    def geocode_nominatim(address):
-        try:
-            location = geolocator.geocode(address, timeout=10)
-            if location is None:
-                return None
-            else:
-                return (location.latitude, location.longitude)
-        except GeocoderServiceError as e:
-            cprint(f"Nominatim geocoding failed for address '{address}': {e}")
-            return None
+#     # Define geocoding functions
+#     def geocode_nominatim(address):
+#         try:
+#             location = geolocator.geocode(address, timeout=10)
+#             if location is None:
+#                 return None
+#             else:
+#                 return (location.latitude, location.longitude)
+#         except GeocoderServiceError as e:
+#             cprint(f"Nominatim geocoding failed for address '{address}': {e}")
+#             return None
 
-    def geocode_google(address):
-        try:
-            geocode_result = gmaps.geocode(address)
-            if geocode_result and len(geocode_result) > 0:
-                location = geocode_result[0]["geometry"]["location"]
-                return (location["lat"], location["lng"])
-            else:
-                return None
-        except Exception as e:
-            cprint(f"Google geocoding failed for address '{address}': {e}")
-            return None
+#     def geocode_google(address):
+#         try:
+#             geocode_result = gmaps.geocode(address)
+#             if geocode_result and len(geocode_result) > 0:
+#                 location = geocode_result[0]["geometry"]["location"]
+#                 return (location["lat"], location["lng"])
+#             else:
+#                 return None
+#         except Exception as e:
+#             cprint(f"Google geocoding failed for address '{address}': {e}")
+#             return None
 
-    # Geocoding logic
-    coordinates = []
-    num_batches = math.ceil(len(addresses) / batch_size)
-    for i in tqdm(range(num_batches)):
-        batch_start = i * batch_size
-        batch_end = (i + 1) * batch_size
-        batch_addresses = addresses[batch_start:batch_end]
-        batch_coordinates = []
-        for address in batch_addresses:
-            try:
-                # If specific service is selected
-                if use_nominatim:
-                    coord = geocode_nominatim(address)
-                elif use_google:
-                    coord = geocode_google(address)
-                else:
-                    # Default behavior: Try Nominatim first, then Google
-                    coord = geocode_nominatim(address)
-                    if coord is None:
-                        coord = geocode_google(address)
+#     # Geocoding logic
+#     coordinates = []
+#     num_batches = math.ceil(len(addresses) / batch_size)
+#     for i in tqdm(range(num_batches)):
+#         batch_start = i * batch_size
+#         batch_end = (i + 1) * batch_size
+#         batch_addresses = addresses[batch_start:batch_end]
+#         batch_coordinates = []
+#         for address in batch_addresses:
+#             try:
+#                 # If specific service is selected
+#                 if use_nominatim:
+#                     coord = geocode_nominatim(address)
+#                 elif use_google:
+#                     coord = geocode_google(address)
+#                 else:
+#                     # Default behavior: Try Nominatim first, then Google
+#                     coord = geocode_nominatim(address)
+#                     if coord is None:
+#                         coord = geocode_google(address)
 
-                batch_coordinates.append(coord)
-            except Exception as e:
-                cprint(f"Error processing address '{address}': {e}")
-                batch_coordinates.append(None)
-        coordinates += batch_coordinates
+#                 batch_coordinates.append(coord)
+#             except Exception as e:
+#                 cprint(f"Error processing address '{address}': {e}")
+#                 batch_coordinates.append(None)
+#         coordinates += batch_coordinates
 
-    return coordinates
+#     return coordinates
 
 
 

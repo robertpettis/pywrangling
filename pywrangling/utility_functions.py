@@ -15,8 +15,69 @@ import os
 from datetime import datetime, time  # For date and time handling
 import pytz  # For timezone handling
 import inspect
+import re 
 
 # %% Functions
+
+import pandas as pd
+import re
+
+def find_bad_csv_line_pandas(filename: str):
+    """
+    Attempts to read a CSV using pandas. If there's a tokenizing error,
+    this function parses the error to extract the offending line number
+    from the exception message, then re-opens the file in plain text mode
+    to retrieve and return the raw text of that line.
+
+    Parameters
+    ----------
+    filename : str
+        The path to the CSV file to be read.
+
+    Returns
+    -------
+    str or None
+        The raw text of the offending row if found. Returns None if no issues
+        are detected or if the line number cannot be parsed from the error
+        message.
+
+    Examples
+    --------
+    >>> bad_line = find_bad_csv_line_pandas("some_file.csv")
+    >>> if bad_line is not None:
+    ...     print("Offending row text:", bad_line)
+    ... # Otherwise, "No bad lines found!" is printed, indicating success.
+    """
+    try:
+        # Attempt to read the CSV
+        pd.read_csv(filename)
+        print("No bad lines found!")
+        return None
+
+    except pd.errors.ParserError as e:
+        # Typical error format:
+        # "Error tokenizing data. C error: Expected X fields in line N, saw Y"
+        # Extract N from the error message using regex:
+        msg = str(e)
+        m = re.search(r'line\s+(\d+)', msg)
+        if m:
+            bad_line_num = int(m.group(1))
+            # Retrieve the exact raw line from the file
+            with open(filename, 'r', encoding='utf-8') as f:
+                for current_line_num, line_text in enumerate(f, start=1):
+                    if current_line_num == bad_line_num:
+                        print(f"Bad row found at line {bad_line_num}:")
+                        return line_text.rstrip('\n')
+
+        # If we couldn't extract the line number:
+        print("Failed to detect line number from the error message.")
+        return None
+
+    except Exception as e:
+        # Some other error (IOError, etc.)
+        print(f"Unexpected error: {e}")
+        return None
+
 
 
 def find_columns_in_csv(directory: str, search_value: str, case_sensitive: bool = True):
