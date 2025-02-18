@@ -448,7 +448,7 @@ def print_current_line():
 
 
 def cprint(text, text_color="red", bg_color="yellow", bold=True):
-    # Define standard colors
+    # Standard ANSI colors
     colors = {
         "black": "\033[30m",
         "red": "\033[31m",
@@ -458,11 +458,28 @@ def cprint(text, text_color="red", bg_color="yellow", bold=True):
         "magenta": "\033[35m",
         "cyan": "\033[36m",
         "white": "\033[37m",
-        "pink": "\033[38;5;200m",  # Extended ANSI color
-        "orange": "\033[38;5;214m",  # Extended ANSI color
     }
 
-    # Define background colors
+    # Extended ANSI 256-color mode
+    extended_colors = {
+        "pink": "\033[38;5;200m",
+        "orange": "\033[38;5;214m",
+        "sky blue": "\033[38;5;117m",
+        "burnt orange": "\033[38;5;166m",
+        "navy blue": "\033[38;5;18m",
+        "lime green": "\033[38;5;46m",
+        "gold": "\033[38;5;220m",
+        "turquoise": "\033[38;5;51m",
+        "violet": "\033[38;5;93m",
+        "teal": "\033[38;5;30m",
+        "coral": "\033[38;5;209m",
+        "lavender": "\033[38;5;183m",
+    }
+
+    # Merge both dictionaries
+    colors.update(extended_colors)
+
+    # Standard background colors
     bg_colors = {
         "black": "\033[40m",
         "red": "\033[41m",
@@ -472,18 +489,36 @@ def cprint(text, text_color="red", bg_color="yellow", bold=True):
         "magenta": "\033[45m",
         "cyan": "\033[46m",
         "white": "\033[47m",
-        "pink": "\033[48;5;200m",
-        "orange": "\033[48;5;214m",
     }
 
-    # Get ANSI codes
-    text_code = colors.get(text_color.lower(), "\033[31m")  # Default to red
-    bg_code = bg_colors.get(bg_color.lower(), "\033[43m")  # Default to yellow
+    # Extended ANSI background colors
+    extended_bg_colors = {
+        "pink": "\033[48;5;200m",
+        "orange": "\033[48;5;214m",
+        "sky blue": "\033[48;5;117m",
+        "burnt orange": "\033[48;5;166m",
+        "navy blue": "\033[48;5;18m",
+        "lime green": "\033[48;5;46m",
+        "gold": "\033[48;5;220m",
+        "turquoise": "\033[48;5;51m",
+        "violet": "\033[48;5;93m",
+        "teal": "\033[48;5;30m",
+        "coral": "\033[48;5;209m",
+        "lavender": "\033[48;5;183m",
+    }
+
+    # Merge background colors
+    bg_colors.update(extended_bg_colors)
+
+    # Fetch ANSI escape codes, default to red text and yellow background
+    text_code = colors.get(text_color.lower(), "\033[31m")
+    bg_code = bg_colors.get(bg_color.lower(), "\033[43m")
     bold_code = "\033[1m" if bold else ""
     reset_code = "\033[0m"
 
-    # Print formatted text
+    # Print the formatted text
     print(f"{bold_code}{text_code}{bg_code}{text}{reset_code}")
+
 
 
 
