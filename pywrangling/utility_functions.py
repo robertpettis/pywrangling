@@ -474,6 +474,8 @@ def cprint(text, text_color="red", bg_color="yellow", bold=True):
         "teal": "\033[38;5;30m",
         "coral": "\033[38;5;209m",
         "lavender": "\033[38;5;183m",
+        "cobalt blue": "\033[38;5;21m",
+        "electric indigo": "\033[38;5;93m",
     }
 
     # Merge both dictionaries
@@ -505,6 +507,8 @@ def cprint(text, text_color="red", bg_color="yellow", bold=True):
         "teal": "\033[48;5;30m",
         "coral": "\033[48;5;209m",
         "lavender": "\033[48;5;183m",
+        "cobalt blue": "\033[48;5;21m",
+        "electric indigo": "\033[48;5;93m",
     }
 
     # Merge background colors
@@ -518,6 +522,8 @@ def cprint(text, text_color="red", bg_color="yellow", bold=True):
 
     # Print the formatted text
     print(f"{bold_code}{text_code}{bg_code}{text}{reset_code}")
+
+
 
 
 
