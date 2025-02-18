@@ -447,7 +447,7 @@ def print_current_line():
     return line_number
 
 
-def cprint(text, text_color="red", bg_color="yellow"):
+def cprint(text, text_color="red", bg_color="yellow", bold=True):
     # Define color mappings
     colors = {
         "black": "\033[30m",
@@ -475,7 +475,9 @@ def cprint(text, text_color="red", bg_color="yellow"):
     # Fetch the color codes, default to red text and yellow background
     text_code = colors.get(text_color.lower(), "\033[31m")
     bg_code = bg_colors.get(bg_color.lower(), "\033[43m")
+    bold_code = "\033[1m" if bold else ""
     reset_code = "\033[0m"
 
     # Print the formatted text
-    print(f"{text_code}{bg_code}{text}{reset_code}")
+    print(f"{bold_code}{text_code}{bg_code}{text}{reset_code}")
+
