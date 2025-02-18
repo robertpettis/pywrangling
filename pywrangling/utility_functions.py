@@ -16,13 +16,12 @@ from datetime import datetime, time  # For date and time handling
 import pytz  # For timezone handling
 import inspect
 import re 
-
+import csv
 # %% Functions
 
-import pandas as pd
-import re
 
-def find_bad_csv_line_csv_module(
+
+def find_bad_csv_line(
     filename: str,
     has_header: bool = True,
     return_as_dataframe: bool = False
