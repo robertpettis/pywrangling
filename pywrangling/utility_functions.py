@@ -448,7 +448,7 @@ def print_current_line():
 
 
 def cprint(text, text_color="red", bg_color="yellow", bold=True):
-    # Define color mappings
+    # Define standard colors
     colors = {
         "black": "\033[30m",
         "red": "\033[31m",
@@ -458,9 +458,11 @@ def cprint(text, text_color="red", bg_color="yellow", bold=True):
         "magenta": "\033[35m",
         "cyan": "\033[36m",
         "white": "\033[37m",
+        "pink": "\033[38;5;200m",  # Extended ANSI color
+        "orange": "\033[38;5;214m",  # Extended ANSI color
     }
 
-    # Define background color mappings
+    # Define background colors
     bg_colors = {
         "black": "\033[40m",
         "red": "\033[41m",
@@ -470,14 +472,18 @@ def cprint(text, text_color="red", bg_color="yellow", bold=True):
         "magenta": "\033[45m",
         "cyan": "\033[46m",
         "white": "\033[47m",
+        "pink": "\033[48;5;200m",
+        "orange": "\033[48;5;214m",
     }
 
-    # Fetch the color codes, default to red text and yellow background
-    text_code = colors.get(text_color.lower(), "\033[31m")
-    bg_code = bg_colors.get(bg_color.lower(), "\033[43m")
+    # Get ANSI codes
+    text_code = colors.get(text_color.lower(), "\033[31m")  # Default to red
+    bg_code = bg_colors.get(bg_color.lower(), "\033[43m")  # Default to yellow
     bold_code = "\033[1m" if bold else ""
     reset_code = "\033[0m"
 
-    # Print the formatted text
+    # Print formatted text
     print(f"{bold_code}{text_code}{bg_code}{text}{reset_code}")
+
+
 
