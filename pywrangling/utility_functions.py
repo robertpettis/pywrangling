@@ -22,61 +22,141 @@ import re
 import pandas as pd
 import re
 
-def find_bad_csv_line_pandas(filename: str):
+def find_bad_csv_line_csv_module(
+    filename: str,
+    has_header: bool = True,
+    return_as_dataframe: bool = False
+):
     """
-    Attempts to read a CSV using pandas. If there's a tokenizing error,
-    this function parses the error to extract the offending line number
-    from the exception message, then re-opens the file in plain text mode
-    to retrieve and return the raw text of that line.
+    Reads a CSV file line by line using the built-in csv module and checks
+    whether each row has the same number of columns as the first (header) row.
+    If a row is found with a mismatched column count (commonly due to an
+    unescaped comma), this function returns information about the offending
+    row.
 
     Parameters
     ----------
     filename : str
         The path to the CSV file to be read.
+    has_header : bool, optional
+        If True, treat the first row as the header row (column names).
+        If False, the function will generate generic column names for the row
+        comparison. Default is True.
+    return_as_dataframe : bool, optional
+        If True, return a tuple: (raw_line_text, df), where df is a DataFrame
+        showing how the values line up under column names (including potential
+        "Extra_XXX" columns for overflow). If False, only the raw line text is
+        returned. Default is False.
 
     Returns
     -------
-    str or None
-        The raw text of the offending row if found. Returns None if no issues
-        are detected or if the line number cannot be parsed from the error
-        message.
+    str or tuple or None
+        - If return_as_dataframe=False, returns the raw text of the offending row.
+        - If return_as_dataframe=True, returns a tuple: (raw_line_text, df).
+        - Returns None if no mismatched rows are detected.
 
     Examples
     --------
-    >>> bad_line = find_bad_csv_line_pandas("some_file.csv")
+    1) Basic usage returning only the raw line:
+    >>> bad_line = find_bad_csv_line_csv_module("some_file.csv")
     >>> if bad_line is not None:
     ...     print("Offending row text:", bad_line)
-    ... # Otherwise, "No bad lines found!" is printed, indicating success.
+
+    2) If you also want a DataFrame for debugging:
+    >>> result = find_bad_csv_line_csv_module("some_file.csv", return_as_dataframe=True)
+    >>> if result is not None:
+    ...     bad_line, bad_df = result
+    ...     print("Raw line:", bad_line)
+    ...     print("DataFrame showing misalignment:")
+    ...     print(bad_df)
     """
-    try:
-        # Attempt to read the CSV
-        pd.read_csv(filename)
-        print("No bad lines found!")
-        return None
+    # Read the entire file as a list of lines for raw access
+    with open(filename, 'r', encoding='utf-8') as f:
+        lines = f.readlines()
 
-    except pd.errors.ParserError as e:
-        # Typical error format:
-        # "Error tokenizing data. C error: Expected X fields in line N, saw Y"
-        # Extract N from the error message using regex:
-        msg = str(e)
-        m = re.search(r'line\s+(\d+)', msg)
-        if m:
-            bad_line_num = int(m.group(1))
-            # Retrieve the exact raw line from the file
-            with open(filename, 'r', encoding='utf-8') as f:
-                for current_line_num, line_text in enumerate(f, start=1):
-                    if current_line_num == bad_line_num:
-                        print(f"Bad row found at line {bad_line_num}:")
-                        return line_text.rstrip('\n')
+    # Use the csv module on the same file again to parse
+    with open(filename, 'r', encoding='utf-8') as f:
+        reader = csv.reader(f)
 
-        # If we couldn't extract the line number:
-        print("Failed to detect line number from the error message.")
-        return None
+        try:
+            # If the file is empty, we won't even get a row
+            first_row = next(reader)
+        except StopIteration:
+            print("File is empty, no bad lines.")
+            return None
 
-    except Exception as e:
-        # Some other error (IOError, etc.)
-        print(f"Unexpected error: {e}")
-        return None
+        # Determine the header and expected_num_cols
+        if has_header:
+            header = first_row
+            expected_num_cols = len(header)
+            line_number = 1  # We consumed the header line
+        else:
+            # If there's no real header, treat the first row as data
+            # and generate generic column names for alignment
+            header = [f"col_{i+1}" for i in range(len(first_row))]
+            expected_num_cols = len(header)
+            # We consider the first row as already read; so let's set line_number=1
+            # but this row also needs to be validated in case it itself is bad
+            # We'll do a quick check before continuing
+            line_number = 1
+            if len(first_row) != expected_num_cols:
+                # It's ironically the first row that is mismatched
+                print(f"Potentially bad row at line {line_number}.")
+                raw_line_text = lines[line_number - 1].rstrip('\n')
+                return _build_return(raw_line_text, header, return_as_dataframe)
+
+        # Now iterate through remaining rows
+        for row in reader:
+            line_number += 1
+            if len(row) != expected_num_cols:
+                print(f"Potentially bad row at line {line_number}.")
+                raw_line_text = lines[line_number - 1].rstrip('\n')
+                return _build_return(raw_line_text, header, return_as_dataframe, row)
+
+    # If we never found a mismatch
+    print("No mismatched rows found.")
+    return None
+
+
+def _build_return(raw_line_text, header, return_as_dataframe, row=None):
+    """
+    Helper function to either return the raw line or build a DataFrame
+    if return_as_dataframe is True. 'row' is the list of parsed columns for the
+    mismatched line if available.
+    """
+    if not return_as_dataframe:
+        return raw_line_text
+
+    # If we need a dataframe, we have to handle:
+    # 1) If row is shorter or equal in length -> we fill in None if needed
+    # 2) If row is longer -> we create "Extra_###" column names
+    row = row or []
+
+    # If there's more data than columns, add extra "Extra_#" columns
+    if len(row) > len(header):
+        extra_count = len(row) - len(header)
+        extra_headers = [f"Extra_{i+1}" for i in range(extra_count)]
+        augmented_header = header + extra_headers
+        data_dict = {}
+        # Fill out normal columns
+        for h, val in zip(header, row[:len(header)]):
+            data_dict[h] = [val]
+        # Fill out the extra columns
+        for eh, val in zip(extra_headers, row[len(header):]):
+            data_dict[eh] = [val]
+    else:
+        # If there's fewer items in row than header, fill missing with None
+        data_dict = {}
+        for i, h in enumerate(header):
+            if i < len(row):
+                data_dict[h] = [row[i]]
+            else:
+                data_dict[h] = [None]
+        augmented_header = list(data_dict.keys())
+
+    df = pd.DataFrame(data_dict, columns=augmented_header)
+    return (raw_line_text, df)
+
 
 
 
