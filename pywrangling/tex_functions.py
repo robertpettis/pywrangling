@@ -143,50 +143,12 @@ def data_to_latex(data, caption="Table", label=None, note=None,
                   custom_column_names=None, custom_column_widths=None):
     """
     Generate a LaTeX table from either a pandas Series or DataFrame.
-
-    Parameters
-    ----------
-    data : pandas.Series or pandas.DataFrame
-        Data to be converted into a LaTeX table. Usually from pandas value_counts() or crosstab() methods.
-    caption : str, optional
-        Caption for the table. Default is "Table".
-    label : str, optional
-        Label for the table. Default is None.
-    note : str, optional
-        Note for the table. Default is None.
-    caption_position : str, optional
-        Position of the caption, either 'above' or 'below'. Default is 'above'.
-    minipage_size : float, optional
-        The size of the minipage as a fraction of the line width. Default is 0.9.
-    resize_width : float, optional
-        A float representing the width to resize the table to, e.g., 0.9. If None, no resizing is applied. Default is 0.9.
-    total_row : bool, optional
-        Include a total row at the end of the table. Default is False.
-    percent_row : bool, optional
-        Include a percentage row at the end of the table. Default is False.
-    total_column : bool, optional
-        Include a total column at the end of the table. Default is False.
-    percent_column : bool, optional
-        Include a percentage column at the end of the table. Default is False.
-    comment : str, optional
-        A comment to be added after the table. Default is None.
-    series_column_name : str, optional
-        Name of the column represented by the Series (used if data is a Series). Required if data is a Series.
-    custom_column_names : list of str, optional
-        Custom column names to override the default headers. Length should match the number of columns.
-    custom_column_widths : list of str, optional
-        Custom column widths for the tabular environment. Each entry should be a LaTeX width specifier like 'p{1.5cm}'.
-
-    Returns
-    -------
-    str
-        LaTeX table.
     """
-    
+
     # Check if data is a Series (value_counts) or DataFrame (crosstab)
     is_series = isinstance(data, pd.Series)
     is_dataframe = isinstance(data, pd.DataFrame)
-    
+
     # ====== Series Handling (Value Counts) ======
     if is_series:
         if series_column_name is None:
@@ -195,7 +157,7 @@ def data_to_latex(data, caption="Table", label=None, note=None,
         total_count = data.sum() if percent_row or total_row else None
         formatted_values = []
         
-        for index, count in data.iteritems():
+        for index, count in data.items():  # <-- UPDATED FROM iteritems() TO items()
             formatted_count = f"{count:,}"
             if percent_row:
                 percent_value = f"{count / total_count:.1%}".replace('%', '\\%')
@@ -208,7 +170,7 @@ def data_to_latex(data, caption="Table", label=None, note=None,
 
         headers = f"{series_column_name} & Count"
         headers += " & Percentage" if percent_row else ""
-    
+
     # ====== DataFrame Handling (Crosstab) ======
     elif is_dataframe:
         if total_column:
@@ -237,10 +199,10 @@ def data_to_latex(data, caption="Table", label=None, note=None,
             if row[0] == 'Total' or (total_row and i == len(data_reset) - 2):
                 row_string = "\\midrule\n" + row_string
             formatted_values.append(row_string)
-    
+
     else:
         raise ValueError("Data must be a pandas Series or DataFrame.")
-    
+
     # ====== Common LaTeX Table Generation ======
     table = "\\begin{table}[H]\n"
     table += "\\begin{center}\n"
@@ -255,12 +217,12 @@ def data_to_latex(data, caption="Table", label=None, note=None,
         column_format = " ".join(custom_column_widths)
     else:
         column_format = "l" + "r" * (headers.count('&') + 1)
-    
+
     table += f"\\begin{{tabular}}{{{column_format}}}\n"
     table += "\\hline\n"
     table += f"{headers} \\\\\n"
     table += "\\midrule\n"
-    
+
     for value in formatted_values:
         table += f"{value}\n"
 
