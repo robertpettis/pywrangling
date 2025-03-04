@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="pywrangling",
-    version="0.43.5",
+    version="0.43.6",
     packages=find_packages(),
     install_requires=[
         'pandas',
