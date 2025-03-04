@@ -370,20 +370,20 @@ def count_occurrences_with_offset(df, column, string_to_find, offset=1, inplace=
 
 
 
-
-def proper_case(df, column):
+def proper_case(df, column, strip_spaces=True):
     """
     Convert the given pandas DataFrame column to proper case.
     
     Parameters:
     df (pandas.DataFrame): DataFrame containing the column to convert
     column (str): The column name to convert
+    strip_spaces (bool, optional): Whether to strip leading and trailing spaces (default is True)
     
     Returns:
     pandas.DataFrame: The DataFrame with the converted column
     
     Usage:
-    >>> df = pd.DataFrame({"name": ["JASON'S HaT", None, "ANOTHER EXAMPLE"]})
+    >>> df = pd.DataFrame({"name": [" JASON'S HaT ", None, " ANOTHER EXAMPLE  "]})
     >>> proper_case(df, 'name')
                  name
     0      Jason's Hat
@@ -391,6 +391,7 @@ def proper_case(df, column):
     2  Another Example
     """
     def capitalize(text):
+        text = text.strip() if strip_spaces else text  # Strip spaces if enabled
         words = text.split()
         new_words = []
         for word in words:
