@@ -655,11 +655,6 @@ pd.Series.values_and_percent = values_and_percent
 
 
 
-
-
-
-
-
 def drop_horizontal_duplicates(
     df: pd.DataFrame,
     *,
@@ -667,37 +662,63 @@ def drop_horizontal_duplicates(
     normalise: Callable[[object], object] | None = None,
 ) -> pd.DataFrame:
     """
-    Replace values that appear more than once in the *same row* with NA.
+    Replace values that appear more than once *within the same row* by
+    ``pd.NA`` (leaving only the copy indicated by *keep*).
 
     Parameters
     ----------
     df : DataFrame
-        The frame you want to clean.
+        The frame to clean.
     keep : {'first', 'last'}, default 'first'
-        Which copy to preserve in each row.
+        Which duplicate to keep in each row.
     normalise : callable, optional
-        A function applied to each cell before comparison.
-        Useful when you want comparisons to ignore case/spacing, e.g.
-        ``lambda x: str(x).strip().lower() if pd.notna(x) else x``
+        Function applied to every cell before comparison.
+        Handy when you want equality to ignore case/spacing, e.g.::
+
+            normalise=lambda x: str(x).strip().lower() if pd.notna(x) else x
 
     Returns
     -------
     DataFrame
-        A copy of `df` in which horizontal duplicates are replaced by NA.
+        A copy of *df* with horizontal duplicates masked out.
+
+    Examples
+    --------
+    >>> import pandas as pd, numpy as np
+    >>> df = pd.DataFrame({
+    ...     "A": ["foo", "foo", "bar"],
+    ...     "B": ["foo", "baz", "bar"],
+    ...     "C": ["foo", "qux", "bar"],
+    ... })
+    >>> df
+         A    B    C
+    0  foo  foo  foo
+    1  foo  baz  qux
+    2  bar  bar  bar
+
+    Keep the first occurrence in each row (default) ▶
+    >>> drop_horizontal_duplicates(df)
+         A    B    C
+    0  foo  <NA> <NA>
+    1  foo  baz  qux
+    2  bar  <NA> <NA>
+
+    Keep the last occurrence instead ▶
+    >>> drop_horizontal_duplicates(df, keep="last")
+         A    B    C
+    0  <NA> <NA> foo
+    1  foo  baz  qux
+    2  <NA> <NA> bar
     """
-    # Work on a copy so we leave the original intact
+    # Work on a copy so the original is untouched
     out = df.copy()
 
     def _row_dedup(row: pd.Series) -> pd.Series:
-        values = row if normalise is None else row.map(normalise)
-        # duplicated() flags all repeats in the order we scan.
-        mask = values.duplicated(keep=keep)
-        return row.mask(mask)                # turn repeats into <NA>
+        vals = row if normalise is None else row.map(normalise)
+        mask = vals.duplicated(keep=keep)
+        return row.mask(mask, pd.NA)
 
     return out.apply(_row_dedup, axis=1)
-
-
-
 
 
 
