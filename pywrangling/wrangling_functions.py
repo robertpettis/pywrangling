@@ -13,7 +13,7 @@ import pandas as pd  # Main library for data manipulation
 import numpy as np  # Library for numerical operations
 import re  # Regular expressions library for string manipulation
 import math
-
+from typing import Callable, Literal
 
 
 def rename_columns(df, old_names, new_names=None, prefix=None, suffix=None, remove_prefix=None, remove_suffix=None):
@@ -645,3 +645,63 @@ def values_and_percent(self, decimals=2):
 
 # Extend the pandas Series class to include this method
 pd.Series.values_and_percent = values_and_percent
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+def drop_horizontal_duplicates(
+    df: pd.DataFrame,
+    *,
+    keep: Literal["first", "last"] = "first",
+    normalise: Callable[[object], object] | None = None,
+) -> pd.DataFrame:
+    """
+    Replace values that appear more than once in the *same row* with NA.
+
+    Parameters
+    ----------
+    df : DataFrame
+        The frame you want to clean.
+    keep : {'first', 'last'}, default 'first'
+        Which copy to preserve in each row.
+    normalise : callable, optional
+        A function applied to each cell before comparison.
+        Useful when you want comparisons to ignore case/spacing, e.g.
+        ``lambda x: str(x).strip().lower() if pd.notna(x) else x``
+
+    Returns
+    -------
+    DataFrame
+        A copy of `df` in which horizontal duplicates are replaced by NA.
+    """
+    # Work on a copy so we leave the original intact
+    out = df.copy()
+
+    def _row_dedup(row: pd.Series) -> pd.Series:
+        values = row if normalise is None else row.map(normalise)
+        # duplicated() flags all repeats in the order we scan.
+        mask = values.duplicated(keep=keep)
+        return row.mask(mask)                # turn repeats into <NA>
+
+    return out.apply(_row_dedup, axis=1)
+
+
+
+
+
+
+
+
+
+
