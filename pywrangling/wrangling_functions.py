@@ -730,7 +730,7 @@ def safe_left_merge(
         on,                          # cols or list of cols
         *,                           # force kwargs below to be named
         validate='one_to_one',       # or 'one_to_many', etc.
-        error_on_collision=False,    # whether to error if columns collide
+        error_on_collision=True,    # whether to error if columns collide
         msg: str = None,
         **kwargs
     ) -> pd.DataFrame:
