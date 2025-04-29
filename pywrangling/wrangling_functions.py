@@ -724,5 +724,101 @@ def drop_horizontal_duplicates(
 
 
 
+def safe_left_merge(
+        left: pd.DataFrame,
+        right: pd.DataFrame,
+        on,                          # cols or list of cols
+        *,                           # force kwargs below to be named
+        validate='one_to_one',       # or 'one_to_many', etc.
+        error_on_collision=False,    # whether to error if columns collide
+        msg: str = None,
+        **kwargs
+    ) -> pd.DataFrame:
+    """
+    Left-merge that asserts row-count is preserved.
+
+    By default:
+    - If a collision would happen, allow it but restore original left columns.
+      (The left-hand columns stay unchanged, right-hand colliding columns are dropped.)
+
+    If `error_on_collision=True`:
+    - Raise an error if any columns outside the `on` keys would collide.
+
+    Parameters
+    ----------
+    left, right : DataFrame
+        The two DataFrames to merge.
+    on : str or list of str
+        Column(s) to join on.
+    validate : str, optional
+        Pandas built-in integrity check.
+    error_on_collision : bool, default False
+        If True, raise ValueError if a collision would happen.
+    msg : str, optional
+        Custom message for assertion error.
+    kwargs : keyword arguments
+        Any other arguments to pass to `pd.merge`.
+
+    Returns
+    -------
+    merged : DataFrame
+        The merged DataFrame.
+
+    Examples
+    --------
+    >>> import pandas as pd
+    >>> import pywrangling.wrangling_functions as wf
+    >>>
+    >>> left = pd.DataFrame({'id': [1, 2], 'val': ['a', 'b']})
+    >>> right = pd.DataFrame({'id': [1, 2], 'val': ['c', 'd'], 'other': [10, 20]})
+    >>>
+    >>> # Default behavior: collisions allowed, left wins
+    >>> merged = wf.safe_left_merge(left, right, on='id')
+    >>> print(merged)
+       id val  other
+    0   1   a     10
+    1   2   b     20
+    >>>
+    >>> # Force strict behavior: collision raises an error
+    >>> merged = wf.safe_left_merge(left, right, on='id', error_on_collision=True)
+    Traceback (most recent call last):
+        ...
+    ValueError: Cannot merge: these columns would collide and require suffixes: ['val']
+    """
+    # Determine join keys
+    on_cols = on if isinstance(on, list) else [on]
+    left_nonkey = set(left.columns) - set(on_cols)
+    right_nonkey = set(right.columns) - set(on_cols)
+
+    # Identify collisions
+    collisions = left_nonkey & right_nonkey
+    if collisions and error_on_collision:
+        raise ValueError(
+            f"Cannot merge: these columns would collide and require suffixes: {sorted(collisions)}"
+        )
+
+    before = len(left)
+    merged = pd.merge(
+        left,
+        right,
+        how='left',
+        on=on,
+        validate=validate,
+        suffixes=('_x', '_y'),  # allow suffixing temporarily
+        **kwargs
+    )
+    after = len(merged)
+
+    # If collisions occurred, restore left columns
+    if collisions:
+        for col in collisions:
+            merged.rename(columns={f"{col}_x": col}, inplace=True)
+            merged.drop(columns=[f"{col}_y"], inplace=True)
+
+    assert after == before, (
+        msg or
+        f"Row count changed after merge on {on}: {before:,} → {after:,}"
+    )
+    return merged
 
 
