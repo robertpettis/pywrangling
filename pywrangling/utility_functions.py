@@ -17,6 +17,7 @@ import pytz  # For timezone handling
 import inspect
 import re 
 import csv
+
 # %% Functions
 
 
@@ -24,7 +25,8 @@ import csv
 def find_bad_csv_line(
     filename: str,
     has_header: bool = True,
-    return_as_dataframe: bool = False
+    return_as_dataframe: bool = False,
+    encoding: str = 'utf-8'
 ):
     """
     Reads a CSV file line by line using the built-in csv module and checks
@@ -69,42 +71,38 @@ def find_bad_csv_line(
     ...     print("DataFrame showing misalignment:")
     ...     print(bad_df)
     """
+
+
     # Read the entire file as a list of lines for raw access
-    with open(filename, 'r', encoding='utf-8') as f:
-        lines = f.readlines()
+    try:
+        with open(filename, 'r', encoding=encoding) as f:
+            lines = f.readlines()
+    except UnicodeDecodeError as e:
+        raise UnicodeDecodeError(f"Could not decode file with encoding '{encoding}'. Try 'windows-1252' or 'latin1'.") from e
 
     # Use the csv module on the same file again to parse
-    with open(filename, 'r', encoding='utf-8') as f:
+    with open(filename, 'r', encoding=encoding) as f:
         reader = csv.reader(f)
 
         try:
-            # If the file is empty, we won't even get a row
             first_row = next(reader)
         except StopIteration:
             print("File is empty, no bad lines.")
             return None
 
-        # Determine the header and expected_num_cols
         if has_header:
             header = first_row
             expected_num_cols = len(header)
-            line_number = 1  # We consumed the header line
+            line_number = 1
         else:
-            # If there's no real header, treat the first row as data
-            # and generate generic column names for alignment
             header = [f"col_{i+1}" for i in range(len(first_row))]
             expected_num_cols = len(header)
-            # We consider the first row as already read; so let's set line_number=1
-            # but this row also needs to be validated in case it itself is bad
-            # We'll do a quick check before continuing
             line_number = 1
             if len(first_row) != expected_num_cols:
-                # It's ironically the first row that is mismatched
                 print(f"Potentially bad row at line {line_number}.")
                 raw_line_text = lines[line_number - 1].rstrip('\n')
                 return _build_return(raw_line_text, header, return_as_dataframe)
 
-        # Now iterate through remaining rows
         for row in reader:
             line_number += 1
             if len(row) != expected_num_cols:
@@ -112,9 +110,9 @@ def find_bad_csv_line(
                 raw_line_text = lines[line_number - 1].rstrip('\n')
                 return _build_return(raw_line_text, header, return_as_dataframe, row)
 
-    # If we never found a mismatch
     print("No mismatched rows found.")
     return None
+
 
 
 def _build_return(raw_line_text, header, return_as_dataframe, row=None):
