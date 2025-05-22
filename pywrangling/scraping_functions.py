@@ -677,19 +677,24 @@ def safe_navigate(driver, action_func, banner_message="Crawler Active", *args, *
     Wrapper for any navigation action: get, click, back, etc.
 
     Reinjects the persistent top banner after the navigation completes.
+
+    Parameters:
+    - driver: WebDriver instance.
+    - action_func: Navigation function (e.g., driver.get, element.click).
+    - banner_message: Message to inject in the banner.
+    - *args, **kwargs: Arguments for the action_func.
+    - banner_kwargs: Extra styling options passed via keyword arguments.
     """
+    # Extract special kwargs for banner customization
+    banner_kwargs = kwargs.pop("banner_kwargs", {})
+
     try:
-        # Run the navigation action (e.g., driver.get or element.click)
         action_func(*args, **kwargs)
-
-        # Wait for DOM to settle
         wait_for_page_load(driver)
-
     except Exception as e:
         print(f"[Warning] Navigation action raised: {e}")
 
-    # Reinject the banner regardless
-    inject_top_banner(driver, message=banner_message)
+    inject_top_banner(driver, message=banner_message, **banner_kwargs)
 
 
 
