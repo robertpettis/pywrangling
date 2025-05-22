@@ -629,6 +629,44 @@ def get_token_expiration_details(bearer_token):
 
 
 
+def inject_top_banner(driver, message="Crawl Monitor Active", 
+                      background_color="#222", text_color="#fff", 
+                      font_size="16px", height="40px", z_index=99999):
+    """
+    Injects a persistent fixed-position banner at the top of the page.
+
+    Parameters:
+    - driver (selenium.webdriver): The WebDriver instance.
+    - message (str): The text to display in the banner.
+    - background_color (str): Background color of the banner.
+    - text_color (str): Text color of the banner.
+    - font_size (str): Font size of the banner text.
+    - height (str): Height of the banner.
+    - z_index (int): z-index to ensure it's on top.
+    """
+
+    js_code = f"""
+    if (!document.getElementById('selenium-banner')) {{
+        const banner = document.createElement('div');
+        banner.id = 'selenium-banner';
+        banner.innerText = `{message}`;
+        banner.style.position = 'fixed';
+        banner.style.top = '0';
+        banner.style.left = '0';
+        banner.style.right = '0';
+        banner.style.height = '{height}';
+        banner.style.backgroundColor = '{background_color}';
+        banner.style.color = '{text_color}';
+        banner.style.fontSize = '{font_size}';
+        banner.style.textAlign = 'center';
+        banner.style.lineHeight = '{height}';
+        banner.style.zIndex = '{z_index}';
+        banner.style.fontFamily = 'Arial, sans-serif';
+        banner.style.pointerEvents = 'none';
+        document.body.appendChild(banner);
+    }}
+    """
+    driver.execute_script(js_code)
 
 
 
