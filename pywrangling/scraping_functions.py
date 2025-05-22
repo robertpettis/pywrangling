@@ -628,7 +628,6 @@ def get_token_expiration_details(bearer_token):
 
 
 
-
 def inject_top_banner(driver, message="Crawl Monitor Active", 
                       background_color="#222", text_color="#fff", 
                       font_size="16px", height="40px", z_index=99999):
@@ -672,6 +671,25 @@ def inject_top_banner(driver, message="Crawl Monitor Active",
 
 
 
+# So this is to help the injection above
+def safe_navigate(driver, action_func, banner_message="Crawler Active", *args, **kwargs):
+    """
+    Wrapper for any navigation action: get, click, back, etc.
+
+    Reinjects the persistent top banner after the navigation completes.
+    """
+    try:
+        # Run the navigation action (e.g., driver.get or element.click)
+        action_func(*args, **kwargs)
+
+        # Wait for DOM to settle
+        wait_for_page_load(driver)
+
+    except Exception as e:
+        print(f"[Warning] Navigation action raised: {e}")
+
+    # Reinject the banner regardless
+    inject_top_banner(driver, message=banner_message)
 
 
 
