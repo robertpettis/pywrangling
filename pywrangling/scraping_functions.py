@@ -628,12 +628,73 @@ def get_token_expiration_details(bearer_token):
 
 
 
+def inject_top_banner(driver, message="Crawl Monitor Active", 
+                      background_color="#222", text_color="#fff", 
+                      font_size="16px", height="40px", z_index=99999):
+    """
+    Injects a persistent fixed-position banner at the top of the page.
+
+    Parameters:
+    - driver (selenium.webdriver): The WebDriver instance.
+    - message (str): The text to display in the banner.
+    - background_color (str): Background color of the banner.
+    - text_color (str): Text color of the banner.
+    - font_size (str): Font size of the banner text.
+    - height (str): Height of the banner.
+    - z_index (int): z-index to ensure it's on top.
+    """
+
+    js_code = f"""
+    if (!document.getElementById('selenium-banner')) {{
+        const banner = document.createElement('div');
+        banner.id = 'selenium-banner';
+        banner.innerText = `{message}`;
+        banner.style.position = 'fixed';
+        banner.style.top = '0';
+        banner.style.left = '0';
+        banner.style.right = '0';
+        banner.style.height = '{height}';
+        banner.style.backgroundColor = '{background_color}';
+        banner.style.color = '{text_color}';
+        banner.style.fontSize = '{font_size}';
+        banner.style.textAlign = 'center';
+        banner.style.lineHeight = '{height}';
+        banner.style.zIndex = '{z_index}';
+        banner.style.fontFamily = 'Arial, sans-serif';
+        banner.style.pointerEvents = 'none';
+        document.body.appendChild(banner);
+    }}
+    """
+    driver.execute_script(js_code)
 
 
 
 
 
+# So this is to help the injection above by attaching it to items that change the page (get, back, click, etc)
+def safe_navigate(driver, action_func, banner_message="Crawler Active", *args, **kwargs):
+    """
+    Wrapper for any navigation action: get, click, back, etc.
 
+    Reinjects the persistent top banner after the navigation completes.
+
+    Parameters:
+    - driver: WebDriver instance.
+    - action_func: Navigation function (e.g., driver.get, element.click).
+    - banner_message: Message to inject in the banner.
+    - *args, **kwargs: Arguments for the action_func.
+    - banner_kwargs: Extra styling options passed via keyword arguments.
+    """
+    # Extract special kwargs for banner customization
+    banner_kwargs = kwargs.pop("banner_kwargs", {})
+
+    try:
+        action_func(*args, **kwargs)
+        wait_for_page_load(driver)
+    except Exception as e:
+        print(f"[Warning] Navigation action raised: {e}")
+
+    inject_top_banner(driver, message=banner_message, **banner_kwargs)
 
 
 
