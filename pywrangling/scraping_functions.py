@@ -671,7 +671,7 @@ def inject_top_banner(driver, message="Crawl Monitor Active",
 
 
 
-# So this is to help the injection above
+# So this is to help the injection above by attaching it to items that change the page (get, back, click, etc)
 def safe_navigate(driver, action_func, banner_message="Crawler Active", *args, **kwargs):
     """
     Wrapper for any navigation action: get, click, back, etc.
