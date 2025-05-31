@@ -22,6 +22,7 @@ import csv
 
 
 
+
 def find_bad_csv_line(
     filename: str,
     has_header: bool = True,
@@ -445,83 +446,212 @@ def print_current_line():
     return line_number
 
 
+
 def cprint(text, text_color="red", bg_color="yellow", bold=True):
-    # Standard ANSI colors
-    colors = {
-        "black": "\033[30m",
-        "red": "\033[31m",
-        "green": "\033[32m",
-        "yellow": "\033[33m",
-        "blue": "\033[34m",
-        "magenta": "\033[35m",
-        "cyan": "\033[36m",
-        "white": "\033[37m",
+    """
+    Prints colored text to the console with optional background color and bold formatting.
+
+    Args:
+        text (str): The text string to print.
+        text_color (str or tuple, optional): The color of the text. Can be a string
+                                             (e.g., "red", "lime green") or an RGB tuple
+                                             (e.g., (255, 0, 0) for pure red).
+                                             Defaults to "red".
+        bg_color (str or tuple, optional): The background color of the text. Can be a string
+                                            or an RGB tuple. Defaults to "yellow".
+        bold (bool, optional): If True, display bold text. Defaults to True.
+
+    Example usage:
+    >>> cprint("Hello, world!", text_color="blue", bg_color="white")
+    >>> cprint("Success!", text_color="lime green", bold=False)
+    >>> cprint("Custom Color", text_color=(150, 0, 200), bg_color=(25, 25, 25))
+    """
+
+    # --- RGB Color Definitions ---
+    # These dictionaries store RGB tuples for named colors.
+    # They will be used to generate 24-bit True Color ANSI escape codes.
+    color_map = {
+        # Basic 8 colors
+        "black": (0, 0, 0),
+        "red": (255, 0, 0),
+        "green": (0, 128, 0), # Standard green
+        "yellow": (255, 255, 0),
+        "blue": (0, 0, 255),
+        "magenta": (255, 0, 255),
+        "cyan": (0, 255, 255),
+        "white": (255, 255, 255),
+
+        # Extended colors (now mapped to specific RGB for consistency)
+        "pink": (255, 192, 203),
+        "orange": (255, 165, 0),
+        "sky blue": (135, 206, 235),
+        "burnt orange": (204, 85, 0),
+        "navy blue": (0, 0, 128),
+        "lime green": (50, 205, 50),
+        "gold": (255, 215, 0),
+        "turquoise": (64, 224, 208),
+        "violet": (143, 0, 255),
+        "teal": (0, 128, 128),
+        "coral": (255, 127, 80),
+        "lavender": (230, 230, 250),
+        "cobalt blue": (0, 71, 171),
+        "electric indigo": (111, 0, 255),
+        "bright green": (0, 255, 0), # Added for a more vibrant green option
     }
 
-    # Extended ANSI 256-color mode
-    extended_colors = {
-        "pink": "\033[38;5;200m",
-        "orange": "\033[38;5;214m",
-        "sky blue": "\033[38;5;117m",
-        "burnt orange": "\033[38;5;166m",
-        "navy blue": "\033[38;5;18m",
-        "lime green": "\033[38;5;46m",
-        "gold": "\033[38;5;220m",
-        "turquoise": "\033[38;5;51m",
-        "violet": "\033[38;5;93m",
-        "teal": "\033[38;5;30m",
-        "coral": "\033[38;5;209m",
-        "lavender": "\033[38;5;183m",
-        "cobalt blue": "\033[38;5;21m",
-        "electric indigo": "\033[38;5;93m",
-    }
+    # Helper function to get the RGB tuple from a color input
+    def get_rgb(color_input, default_rgb):
+        if isinstance(color_input, tuple) and len(color_input) == 3:
+            return color_input
+        elif isinstance(color_input, str):
+            return color_map.get(color_input.lower(), default_rgb)
+        return default_rgb # Fallback if input is neither tuple nor known string
 
-    # Merge both dictionaries
-    colors.update(extended_colors)
+    # --- Determine Foreground Color Code ---
+    # Default RGB for text_color if not found or invalid
+    default_text_rgb = color_map["red"] 
+    selected_text_rgb = get_rgb(text_color, default_text_rgb)
+    r_text, g_text, b_text = selected_text_rgb
+    text_ansi_code = f"\033[38;2;{r_text};{g_text};{b_text}m"
 
-    # Standard background colors
-    bg_colors = {
-        "black": "\033[40m",
-        "red": "\033[41m",
-        "green": "\033[42m",
-        "yellow": "\033[43m",
-        "blue": "\033[44m",
-        "magenta": "\033[45m",
-        "cyan": "\033[46m",
-        "white": "\033[47m",
-    }
+    # --- Determine Background Color Code ---
+    # Default RGB for bg_color if not found or invalid
+    default_bg_rgb = color_map["yellow"] 
+    selected_bg_rgb = get_rgb(bg_color, default_bg_rgb)
+    r_bg, g_bg, b_bg = selected_bg_rgb
+    bg_ansi_code = f"\033[48;2;{r_bg};{g_bg};{b_bg}m" # Note: 48 for background
 
-    # Extended ANSI background colors
-    extended_bg_colors = {
-        "pink": "\033[48;5;200m",
-        "orange": "\033[48;5;214m",
-        "sky blue": "\033[48;5;117m",
-        "burnt orange": "\033[48;5;166m",
-        "navy blue": "\033[48;5;18m",
-        "lime green": "\033[48;5;46m",
-        "gold": "\033[48;5;220m",
-        "turquoise": "\033[48;5;51m",
-        "violet": "\033[48;5;93m",
-        "teal": "\033[48;5;30m",
-        "coral": "\033[48;5;209m",
-        "lavender": "\033[48;5;183m",
-        "cobalt blue": "\033[48;5;21m",
-        "electric indigo": "\033[48;5;93m",
-    }
-
-    # Merge background colors
-    bg_colors.update(extended_bg_colors)
-
-    # Fetch ANSI escape codes, default to red text and yellow background
-    text_code = colors.get(text_color.lower(), "\033[31m")
-    bg_code = bg_colors.get(bg_color.lower(), "\033[43m")
+    # --- Other ANSI Codes ---
     bold_code = "\033[1m" if bold else ""
     reset_code = "\033[0m"
 
     # Print the formatted text
-    print(f"{bold_code}{text_code}{bg_code}{text}{reset_code}")
+    print(f"{bold_code}{text_ansi_code}{bg_ansi_code}{text}{reset_code}")
 
 
+# --- Example Usage ---
+if __name__ == "__main__":
+    print("--- Testing cprint with True Colors ---")
+    print("All colors should now be rendered consistently using 24-bit RGB.")
+    print("-" * 40)
+
+    cprint("Hello, World!", text_color="blue", bg_color="white")
+    cprint("This is a green text.", text_color="green") # Should be standard green
+    cprint("This is bright green text.", text_color="bright green") # Should be vibrant green
+    cprint("Yellow Background!", bg_color="yellow", text_color="black")
+    cprint("Lime Green Text", text_color="lime green", bold=False)
+    cprint("Sky Blue Background", bg_color="sky blue", text_color="white")
+    cprint("Orange Text on Teal Background", text_color="orange", bg_color="teal")
+    cprint("Custom RGB Text", text_color=(180, 50, 255)) # A custom purple
+    cprint("Custom RGB BG", bg_color=(255, 99, 71), text_color="white") # Tomato background
+    cprint("Bold Example", text_color="gold", bold=True)
+    cprint("Default Colors", text_color="red", bg_color="yellow") # Original defaults
+    cprint("Invalid color (defaulted to red text, yellow bg)", text_color="notacolor", bg_color="also-not-a-color")
+
+    print("-" * 40)
+    print("Test complete.")
+
+
+
+
+def sleep_with_count(seconds, refresh_rate=0.1, count_up=False, text_color="cyan", bold=True):
+    """
+    Sleep for a given number of seconds while displaying a live countdown or count-up in the terminal.
+
+    The display is updated in-place (like a progress bar), with optional color.
+
+    Args:
+        seconds (float): Number of seconds to sleep.
+        refresh_rate (float, optional): How often to update the display (in seconds). Default is 0.1.
+        count_up (bool, optional): If True, counts up from 0 to `seconds`.
+                                   If False (default), counts down from `seconds` to 0.
+        text_color (str or tuple, optional): Color of the countdown text. Can be a string
+                                             (e.g., "yellow", "pink") which will be resolved
+                                             to an RGB value, or an RGB tuple directly
+                                             (e.g., (255, 255, 0) for pure yellow).
+                                             Default is "cyan".
+        bold (bool, optional): If True, display bold text. Default is True.
+
+    Example usage:
+
+    >>> sleep_with_count(5) # Default cyan
+    >>> sleep_with_count(5, count_up=True, text_color="yellow") # Will now be true yellow
+    >>> sleep_with_count(10, refresh_rate=0.5, text_color=(0, 255, 0)) # Pure green via RGB tuple
+    >>> sleep_with_count(7, text_color="orange") # Will now be true orange
+    """
+
+    # --- ANSI color definitions as RGB tuples ---
+    # These RGB values will be converted to 24-bit ANSI codes before printing.
+    # This ensures consistent color rendering if your terminal supports 24-bit color.
+    colors_rgb = {
+        "black": (0, 0, 0),
+        "red": (255, 0, 0),
+        "green": (0, 128, 0), # Standard green
+        "bright green": (0, 255, 0), # A more vibrant green, often associated with 'green'
+        "yellow": (255, 255, 0), # Pure yellow
+        "blue": (0, 0, 255),
+        "magenta": (255, 0, 255),
+        "cyan": (0, 255, 255),
+        "white": (255, 255, 255),
+        "pink": (255, 192, 203),        # Common RGB for Pink
+        "orange": (255, 165, 0),        # Common RGB for Orange
+        "sky blue": (135, 206, 235),    # Confirmed working RGB for Sky Blue
+        "burnt orange": (204, 85, 0),   # Common RGB for Burnt Orange
+        "navy blue": (0, 0, 128),       # Common RGB for Navy Blue
+        "lime green": (50, 205, 50),    # Confirmed working RGB for Lime Green
+        "gold": (255, 215, 0),          # Common RGB for Gold
+        "turquoise": (64, 224, 208),    # Common RGB for Turquoise
+        "violet": (143, 0, 255),        # Common RGB for Violet
+        "teal": (0, 128, 128),          # Common RGB for Teal
+        "coral": (255, 127, 80),        # Common RGB for Coral
+        "lavender": (230, 230, 250),    # Common RGB for Lavender
+        "cobalt blue": (0, 71, 171),    # Common RGB for Cobalt Blue
+        "electric indigo": (111, 0, 255), # Common RGB for Electric Indigo
+    }
+
+    # Determine the RGB tuple for the requested color
+    selected_rgb = None
+    if isinstance(text_color, tuple) and len(text_color) == 3:
+        # If it's already an RGB tuple, use it directly
+        selected_rgb = text_color
+    elif isinstance(text_color, str):
+        # Look up the named color in our RGB dictionary
+        selected_rgb = colors_rgb.get(text_color.lower())
+
+    # Fallback to default cyan RGB if color not found or invalid
+    if selected_rgb is None:
+        selected_rgb = colors_rgb.get("cyan", (0, 255, 255)) # Default to cyan RGB if "cyan" also missing
+
+    # Construct the 24-bit True Color ANSI escape code
+    r, g, b = selected_rgb
+    text_code = f"\033[38;2;{r};{g};{b}m"
+
+    bold_code = "\033[1m" if bold else ""
+    reset_code = "\033[0m"
+
+    start_time = time.time()
+    end_time = start_time + seconds
+
+    while True:
+        now = time.time()
+        elapsed = now - start_time
+        remaining = end_time - now
+
+        if remaining <= 0:
+            break
+
+        if count_up:
+            text = f"Sleeping: {elapsed:.1f}/{seconds} seconds elapsed... "
+        else:
+            text = f"Sleeping: {remaining:.1f} seconds remaining... "
+
+        # Print with color and overwrite line
+        sys.stdout.write(f"\r{bold_code}{text_code}{text}{reset_code}")
+        sys.stdout.flush()
+        time.sleep(refresh_rate)
+
+    # Final message
+    sys.stdout.write(f"\r{bold_code}{text_code}Done sleeping!                               {reset_code}\n")
 
 
 
