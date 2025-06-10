@@ -610,47 +610,64 @@ Same is true with any other monkey-patched method.
 🚨🚨🚨
 """
 
-# In pywrangling/wrangling_functions.py
-
-import pandas as pd
-
-def values_and_percent(self, decimals=2):
+def values_and_percent(self, decimals=2, include_total=False, separator_char='-'):
     """
-    Calculate the value counts and corresponding percentages of the Series.
+    Calculate value counts and percentages of the Series.
 
     Parameters:
-        decimals (int, optional): Number of decimal places to round the percentages to. Default is 2.
+        decimals (int): Decimal places for percentages.
+        include_total (bool): Whether to print total row.
+        separator_char (str): Character for separator line.
 
     Returns:
-        pd.DataFrame: A DataFrame with counts and percentages.
-
-    Example:
-
-    >>> data = pd.Series(['A', 'B', 'A', 'C', 'B', 'A'])
-    >>> data.values_and_percent()
-       Count  Percentage
-    A      3        50.0
-    B      2        33.33
-    C      1        16.67
-
-    >>> data.values_and_percent(decimals=1)
-       Count  Percentage
-    A      3        50.0
-    B      2        33.3
-    C      1        16.7
+        pd.DataFrame or None
     """
+    import io
+
     counts = self.value_counts(dropna=False)
     percentages = (counts / len(self) * 100).round(decimals)
-    return pd.DataFrame({'Count': counts, 'Percentage': percentages})
+    df = pd.DataFrame({'Count': counts, 'Percentage': percentages})
 
-# Extend the pandas Series class to include this method
+    if include_total:
+        # Capture the formatted table
+        buffer = io.StringIO()
+        df.to_string(buf=buffer)
+        table_str = buffer.getvalue()
+        lines = table_str.splitlines()
+
+        # Print the table
+        for line in lines:
+            print(line)
+
+        # Separator
+        width = len(lines[0])
+        print(separator_char * width)
+
+        # Locate column positions
+        header = lines[0]
+        count_start = header.index("Count")
+        pct_start = header.index("Percentage")
+
+        # Format total line to match exact spacing
+        total_label = ""
+        total_count = str(counts.sum())
+        total_pct = f"{percentages.sum():.{decimals}f}"
+
+        total_line = (
+            f"{total_label:<{count_start}}"
+            f"{total_count:>{pct_start - count_start-2}}"
+            f"{total_pct:>{width - pct_start+2}}"
+        )
+
+        print(total_line)
+        return None
+
+    return df
+
+
+
+# Attach to pandas Series
 pd.Series.values_and_percent = values_and_percent
-
-
-
-
-
-
 
 
 
