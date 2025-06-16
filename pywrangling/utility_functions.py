@@ -449,109 +449,70 @@ def print_current_line():
 
 
 
-def cprint(text, text_color="red", bg_color="yellow", bold=True):
+def cprint(text, text_color="red", bg_color="yellow", bold=True, animate=False, total_time=2.0):
     """
-    Prints colored text to the console with optional background color and bold formatting.
+    Prints colored text to the console with optional background color, bold formatting,
+    and optional animated typing effect over a total duration.
 
     Args:
         text (str): The text string to print.
-        text_color (str or tuple, optional): The color of the text. Can be a string
-                                             (e.g., "red", "lime green") or an RGB tuple
-                                             (e.g., (255, 0, 0) for pure red).
+        text_color (str or tuple, optional): Text color as a name (e.g., "red") or an (R, G, B) tuple.
                                              Defaults to "red".
-        bg_color (str or tuple, optional): The background color of the text. Can be a string
-                                            or an RGB tuple. Defaults to "yellow".
-        bold (bool, optional): If True, display bold text. Defaults to True.
+        bg_color (str or tuple, optional): Background color as a name (e.g., "yellow") or an (R, G, B) tuple.
+                                           Defaults to "yellow".
+        bold (bool, optional): If True, displays bold text. Defaults to True.
+        animate (bool, optional): If True, prints text with a typing animation. Defaults to False.
+        total_time (float, optional): Total duration (in seconds) for the animated output. Only used if animate=True.
 
-    Example usage:
-    >>> cprint("Hello, world!", text_color="blue", bg_color="white")
-    >>> cprint("Success!", text_color="lime green", bold=False)
-    >>> cprint("Custom Color", text_color=(150, 0, 200), bg_color=(25, 25, 25))
+    Examples:
+        # Using named colors without animation
+        >>> cprint("Hello, world!", text_color="blue", bg_color="white")
+
+        # Using RGB tuples with animation over 3 seconds
+        >>> cprint("Animating with RGB colors...", text_color=(0, 255, 180), bg_color=(30, 30, 30),
+        ...        bold=False, animate=True, total_time=3.0)
     """
 
-    # --- RGB Color Definitions ---
-    # These dictionaries store RGB tuples for named colors.
-    # They will be used to generate 24-bit True Color ANSI escape codes.
     color_map = {
-        # Basic 8 colors
-        "black": (0, 0, 0),
-        "red": (255, 0, 0),
-        "green": (0, 128, 0), # Standard green
-        "yellow": (255, 255, 0),
-        "blue": (0, 0, 255),
-        "magenta": (255, 0, 255),
-        "cyan": (0, 255, 255),
-        "white": (255, 255, 255),
-
-        # Extended colors (now mapped to specific RGB for consistency)
-        "pink": (255, 192, 203),
-        "orange": (255, 165, 0),
-        "sky blue": (135, 206, 235),
-        "burnt orange": (204, 85, 0),
-        "navy blue": (0, 0, 128),
-        "lime green": (50, 205, 50),
-        "gold": (255, 215, 0),
-        "turquoise": (64, 224, 208),
-        "violet": (143, 0, 255),
-        "teal": (0, 128, 128),
-        "coral": (255, 127, 80),
-        "lavender": (230, 230, 250),
-        "cobalt blue": (0, 71, 171),
-        "electric indigo": (111, 0, 255),
-        "bright green": (0, 255, 0), # Added for a more vibrant green option
+        "black": (0, 0, 0), "red": (255, 0, 0), "green": (0, 128, 0), "yellow": (255, 255, 0),
+        "blue": (0, 0, 255), "magenta": (255, 0, 255), "cyan": (0, 255, 255), "white": (255, 255, 255),
+        "pink": (255, 192, 203), "orange": (255, 165, 0), "sky blue": (135, 206, 235),
+        "burnt orange": (204, 85, 0), "navy blue": (0, 0, 128), "lime green": (50, 205, 50),
+        "gold": (255, 215, 0), "turquoise": (64, 224, 208), "violet": (143, 0, 255),
+        "teal": (0, 128, 128), "coral": (255, 127, 80), "lavender": (230, 230, 250),
+        "cobalt blue": (0, 71, 171), "electric indigo": (111, 0, 255), "bright green": (0, 255, 0),
     }
 
-    # Helper function to get the RGB tuple from a color input
+    def is_valid_rgb(rgb):
+        return (isinstance(rgb, tuple) and len(rgb) == 3 and
+                all(isinstance(x, int) and 0 <= x <= 255 for x in rgb))
+
     def get_rgb(color_input, default_rgb):
-        if isinstance(color_input, tuple) and len(color_input) == 3:
+        if is_valid_rgb(color_input):
             return color_input
         elif isinstance(color_input, str):
             return color_map.get(color_input.lower(), default_rgb)
-        return default_rgb # Fallback if input is neither tuple nor known string
+        return default_rgb
 
-    # --- Determine Foreground Color Code ---
-    # Default RGB for text_color if not found or invalid
-    default_text_rgb = color_map["red"] 
-    selected_text_rgb = get_rgb(text_color, default_text_rgb)
-    r_text, g_text, b_text = selected_text_rgb
+    r_text, g_text, b_text = get_rgb(text_color, color_map["red"])
+    r_bg, g_bg, b_bg = get_rgb(bg_color, color_map["yellow"])
+
     text_ansi_code = f"\033[38;2;{r_text};{g_text};{b_text}m"
-
-    # --- Determine Background Color Code ---
-    # Default RGB for bg_color if not found or invalid
-    default_bg_rgb = color_map["yellow"] 
-    selected_bg_rgb = get_rgb(bg_color, default_bg_rgb)
-    r_bg, g_bg, b_bg = selected_bg_rgb
-    bg_ansi_code = f"\033[48;2;{r_bg};{g_bg};{b_bg}m" # Note: 48 for background
-
-    # --- Other ANSI Codes ---
+    bg_ansi_code = f"\033[48;2;{r_bg};{g_bg};{b_bg}m"
     bold_code = "\033[1m" if bold else ""
     reset_code = "\033[0m"
+    prefix = f"{bold_code}{text_ansi_code}{bg_ansi_code}"
+    suffix = reset_code
 
-    # Print the formatted text
-    print(f"{bold_code}{text_ansi_code}{bg_ansi_code}{text}{reset_code}")
-
-
-# --- Example Usage ---
-if __name__ == "__main__":
-    print("--- Testing cprint with True Colors ---")
-    print("All colors should now be rendered consistently using 24-bit RGB.")
-    print("-" * 40)
-
-    cprint("Hello, World!", text_color="blue", bg_color="white")
-    cprint("This is a green text.", text_color="green") # Should be standard green
-    cprint("This is bright green text.", text_color="bright green") # Should be vibrant green
-    cprint("Yellow Background!", bg_color="yellow", text_color="black")
-    cprint("Lime Green Text", text_color="lime green", bold=False)
-    cprint("Sky Blue Background", bg_color="sky blue", text_color="white")
-    cprint("Orange Text on Teal Background", text_color="orange", bg_color="teal")
-    cprint("Custom RGB Text", text_color=(180, 50, 255)) # A custom purple
-    cprint("Custom RGB BG", bg_color=(255, 99, 71), text_color="white") # Tomato background
-    cprint("Bold Example", text_color="gold", bold=True)
-    cprint("Default Colors", text_color="red", bg_color="yellow") # Original defaults
-    cprint("Invalid color (defaulted to red text, yellow bg)", text_color="notacolor", bg_color="also-not-a-color")
-
-    print("-" * 40)
-    print("Test complete.")
+    if animate and text:
+        delay = total_time / len(text)
+        for char in text:
+            sys.stdout.write(f"{prefix}{char}{suffix}")
+            sys.stdout.flush()
+            time.sleep(delay)
+        print()
+    else:
+        print(f"{prefix}{text}{suffix}")
 
 
 
