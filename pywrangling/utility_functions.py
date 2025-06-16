@@ -472,16 +472,58 @@ def cprint(text, text_color="red", bg_color="yellow", bold=True, animate=False, 
         >>> cprint("Animating with RGB colors...", text_color=(0, 255, 180), bg_color=(30, 30, 30),
         ...        bold=False, animate=True, total_time=3.0)
     """
-
+    
     color_map = {
-        "black": (0, 0, 0), "red": (255, 0, 0), "green": (0, 128, 0), "yellow": (255, 255, 0),
-        "blue": (0, 0, 255), "magenta": (255, 0, 255), "cyan": (0, 255, 255), "white": (255, 255, 255),
-        "pink": (255, 192, 203), "orange": (255, 165, 0), "sky blue": (135, 206, 235),
-        "burnt orange": (204, 85, 0), "navy blue": (0, 0, 128), "lime green": (50, 205, 50),
-        "gold": (255, 215, 0), "turquoise": (64, 224, 208), "violet": (143, 0, 255),
-        "teal": (0, 128, 128), "coral": (255, 127, 80), "lavender": (230, 230, 250),
-        "cobalt blue": (0, 71, 171), "electric indigo": (111, 0, 255), "bright green": (0, 255, 0),
-    }
+            # Basic Colors
+            "black": (0, 0, 0), "red": (255, 0, 0), "green": (0, 128, 0), "yellow": (255, 255, 0),
+            "blue": (0, 0, 255), "magenta": (255, 0, 255), "cyan": (0, 255, 255), "white": (255, 255, 255),
+    
+            # Extended Colors
+            "pink": (255, 192, 203), "orange": (255, 165, 0), "sky blue": (135, 206, 235),
+            "burnt orange": (204, 85, 0), "navy blue": (0, 0, 128), "lime green": (50, 205, 50),
+            "gold": (255, 215, 0), "turquoise": (64, 224, 208), "violet": (143, 0, 255),
+            "teal": (0, 128, 128), "coral": (255, 127, 80), "lavender": (230, 230, 250),
+            "cobalt blue": (0, 71, 171), "electric indigo": (111, 0, 255), "bright green": (0, 255, 0),
+    
+            # Your Added Colors
+            "cosmic latte": (255, 248, 231),
+            "web du bois red": (184, 45, 73),
+            "web du bois blue": (88, 100, 152),
+            "web du bois brown": (107, 79, 58),
+            "web du bois yellow": (231, 182, 44),
+            "web du bois pink": (208, 150, 142),
+            "cobalt blue": (37, 69, 213),
+            "american red": (178, 34, 52),
+            "american blue": (60, 59, 110),
+            "sc blue": (0, 51, 102),
+            "cider": (158, 110, 88),
+            "slimer": (136, 183, 47),
+            "1987 leonardo": (56, 108, 238),
+            "1987 michaelangelo": (253, 95, 0),
+            "1987 donatello": (81, 29, 110),
+            "1987 raphael": (177, 0, 24),
+            "deadpool": (107, 6, 20),
+            "link hyrule warriors": (73, 124, 38),
+            "link botw": (3, 146, 150),
+            "tng command red": (146, 15, 9),
+            "tng medical blue": (45, 129, 146),
+            "tng gold": (206, 151, 70),
+            "tng troi liner": (171, 149, 184),
+            "tng warp lights": (178, 192, 255),
+            "dayflower fresh": (110, 145, 246),
+            "dayflower aged": (127, 143, 191),
+            "indigo": (75, 0, 130),
+            "prussian blue": (0, 49, 83),
+            "red lead": (227, 66, 52),
+            "red ochre": (125, 78, 87),
+            "safflower pale": (255, 209, 220),
+            "safflower red": (255, 99, 112),
+            "orpiment": (255, 215, 0),
+            "turmeric": (255, 196, 12),
+            "amur cork tree": (255, 211, 0),
+            "gamboge": (228, 155, 15),
+            "yellow ochre": (204, 119, 34)
+        }
 
     def is_valid_rgb(rgb):
         return (isinstance(rgb, tuple) and len(rgb) == 3 and
