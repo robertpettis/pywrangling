@@ -40,7 +40,7 @@ from selenium.webdriver.common.alert import Alert  # Handling some alert errors
 
 from selenium.webdriver.support.ui import Select
 
-
+from selenium.webdriver.remote.webelement import WebElement
 
 import json
 
@@ -698,3 +698,58 @@ def safe_navigate(driver, action_func, banner_message="Crawler Active", *args, *
 
 
 
+
+def describe_element(element: WebElement) -> dict:
+    """
+    Extracts and returns a detailed dictionary describing a Selenium WebElement.
+
+    This includes:
+    - All HTML attributes using JavaScript execution
+    - Core element properties such as tag name, text, innerHTML, and outerHTML
+    - Commonly useful attributes (e.g., href, src, id, class, placeholder, etc.) if present
+
+    Args:
+        element (WebElement): The Selenium WebElement to inspect.
+
+    Returns:
+        dict: A dictionary containing structural and descriptive information about the element.
+
+    Example:
+        >>> describe_element(driver.find_element(By.ID, "login-button"))
+        {
+            'tag_name': 'button',
+            'text': 'Log In',
+            'innerHTML': 'Log In',
+            'outerHTML': '<button id="login-button">Log In</button>',
+            'attributes': {'id': 'login-button'},
+            'id': 'login-button',
+        }
+    """
+
+    driver = element._parent
+
+    # Get all attributes using JavaScript
+    attrs = driver.execute_script("""
+        var items = {}; 
+        for (index = 0; index < arguments[0].attributes.length; ++index) {
+            items[arguments[0].attributes[index].name] = arguments[0].attributes[index].value
+        }; 
+        return items;
+    """, element)
+
+    # Add common properties
+    info = {
+        "tag_name": element.tag_name,
+        "text": element.text,
+        "innerHTML": element.get_attribute("innerHTML"),
+        "outerHTML": element.get_attribute("outerHTML"),
+        "attributes": attrs,
+    }
+
+    # Add selected key attributes if present
+    for key in ["href", "src", "id", "name", "class", "value", "type", "title", "alt", "placeholder", "role", "aria-label"]:
+        val = element.get_attribute(key)
+        if val:
+            info[key] = val
+
+    return info
