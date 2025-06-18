@@ -840,7 +840,7 @@ def safe_left_merge(
 
 
 
-def column_contains(df: pd.DataFrame, value, case_sensitive=True):
+def column_contains(df: pd.DataFrame, value, case_sensitive=False):
     """
     Returns a list of column names in the DataFrame that contain the specified value.
     
