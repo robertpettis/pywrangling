@@ -485,7 +485,7 @@ def cprint(text, text_color="red", bg_color="yellow", bold=True, animate=False, 
             "teal": (0, 128, 128), "coral": (255, 127, 80), "lavender": (230, 230, 250),
             "cobalt blue": (0, 71, 171), "electric indigo": (111, 0, 255), "bright green": (0, 255, 0),
     
-            # Your Added Colors
+            # Specialty Added Colors
             "cosmic latte": (255, 248, 231),
             "web du bois red": (184, 45, 73),
             "web du bois blue": (88, 100, 152),

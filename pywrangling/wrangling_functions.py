@@ -839,3 +839,29 @@ def safe_left_merge(
     return merged
 
 
+
+def column_contains(df: pd.DataFrame, value, case_sensitive=True):
+    """
+    Returns a list of column names in the DataFrame that contain the specified value.
+    
+    Parameters:
+    - df (pd.DataFrame): The DataFrame to search.
+    - value: The value to search for.
+    - case_sensitive (bool): Whether the match should be case-sensitive. Defaults to True.
+    
+    Returns:
+    - List[str]: A list of column names containing the value.
+    """
+    result = []
+    for col in df.columns:
+        series = df[col]
+        if pd.api.types.is_string_dtype(series):
+            if case_sensitive and series.str.contains(str(value), na=False).any():
+                result.append(col)
+            elif not case_sensitive and series.str.contains(str(value), case=False, na=False).any():
+                result.append(col)
+        else:
+            if (series == value).any():
+                result.append(col)
+    return result
+
