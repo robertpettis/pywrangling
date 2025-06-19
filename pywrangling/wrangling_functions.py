@@ -591,87 +591,6 @@ def find_columns_with_substring(df, substring, case_sensitive=True):
 
 
 
-
-
-
-# ##############################################################################
-# 🧩🧩🧩 METHODS SECTION 🧩🧩🧩
-# ##############################################################################
-
-
-
-
-
-"""
-🚨🚨🚨
-If a future version of pandas introduces its own method called values_and_percent, this monkey-patched version could conflict with it, potentially leading to unexpected results.
-
-Same is true with any other monkey-patched method.
-🚨🚨🚨
-"""
-
-def values_and_percent(self, decimals=2, include_total=False, separator_char='-'):
-    """
-    Calculate value counts and percentages of the Series.
-
-    Parameters:
-        decimals (int): Decimal places for percentages.
-        include_total (bool): Whether to print total row.
-        separator_char (str): Character for separator line.
-
-    Returns:
-        pd.DataFrame or None
-    """
-    import io
-
-    counts = self.value_counts(dropna=False)
-    percentages = (counts / len(self) * 100).round(decimals)
-    df = pd.DataFrame({'Count': counts, 'Percentage': percentages})
-
-    if include_total:
-        # Capture the formatted table
-        buffer = io.StringIO()
-        df.to_string(buf=buffer)
-        table_str = buffer.getvalue()
-        lines = table_str.splitlines()
-
-        # Print the table
-        for line in lines:
-            print(line)
-
-        # Separator
-        width = len(lines[0])
-        print(separator_char * width)
-
-        # Locate column positions
-        header = lines[0]
-        count_start = header.index("Count")
-        pct_start = header.index("Percentage")
-
-        # Format total line to match exact spacing
-        total_label = ""
-        total_count = str(counts.sum())
-        total_pct = f"{percentages.sum():.{decimals}f}"
-
-        total_line = (
-            f"{total_label:<{count_start}}"
-            f"{total_count:>{pct_start - count_start-2}}"
-            f"{total_pct:>{width - pct_start+2}}"
-        )
-
-        print(total_line)
-        return None
-
-    return df
-
-
-
-# Attach to pandas Series
-pd.Series.values_and_percent = values_and_percent
-
-
-
-
 def drop_horizontal_duplicates(
     df: pd.DataFrame,
     *,
@@ -713,14 +632,14 @@ def drop_horizontal_duplicates(
     1  foo  baz  qux
     2  bar  bar  bar
 
-    Keep the first occurrence in each row (default) ▶
+    Keep the first occurrence in each row (default) ▶
     >>> drop_horizontal_duplicates(df)
          A    B    C
     0  foo  <NA> <NA>
     1  foo  baz  qux
     2  bar  <NA> <NA>
 
-    Keep the last occurrence instead ▶
+    Keep the last occurrence instead ▶
     >>> drop_horizontal_duplicates(df, keep="last")
          A    B    C
     0  <NA> <NA> foo
@@ -884,3 +803,84 @@ def column_name_contains(df: pd.DataFrame, value: str, case_sensitive: bool = Fa
         return [col for col in df.columns if value in col.lower()]
     else:
         return [col for col in df.columns if value in col]
+
+
+
+
+# ##############################################################################
+# 🧩🧩🧩 METHODS SECTION 🧩🧩🧩
+# ##############################################################################
+
+
+
+
+
+"""
+🚨🚨🚨
+If a future version of pandas introduces its own method called values_and_percent, this monkey-patched version could conflict with it, potentially leading to unexpected results.
+
+Same is true with any other monkey-patched method.
+🚨🚨🚨
+"""
+
+def values_and_percent(self, decimals=2, include_total=False, separator_char='-'):
+    """
+    Calculate value counts and percentages of the Series.
+
+    Parameters:
+        decimals (int): Decimal places for percentages.
+        include_total (bool): Whether to print total row.
+        separator_char (str): Character for separator line.
+
+    Returns:
+        pd.DataFrame or None
+    """
+    import io
+
+    counts = self.value_counts(dropna=False)
+    percentages = (counts / len(self) * 100).round(decimals)
+    df = pd.DataFrame({'Count': counts, 'Percentage': percentages})
+
+    if include_total:
+        # Capture the formatted table
+        buffer = io.StringIO()
+        df.to_string(buf=buffer)
+        table_str = buffer.getvalue()
+        lines = table_str.splitlines()
+
+        # Print the table
+        for line in lines:
+            print(line)
+
+        # Separator
+        width = len(lines[0])
+        print(separator_char * width)
+
+        # Locate column positions
+        header = lines[0]
+        count_start = header.index("Count")
+        pct_start = header.index("Percentage")
+
+        # Format total line to match exact spacing
+        total_label = ""
+        total_count = str(counts.sum())
+        total_pct = f"{percentages.sum():.{decimals}f}"
+
+        total_line = (
+            f"{total_label:<{count_start}}"
+            f"{total_count:>{pct_start - count_start-2}}"
+            f"{total_pct:>{width - pct_start+2}}"
+        )
+
+        print(total_line)
+        return None
+
+    return df
+
+
+
+# Attach to pandas Series
+pd.Series.values_and_percent = values_and_percent
+
+
+

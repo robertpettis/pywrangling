@@ -9,16 +9,16 @@ Author: Robert Pettis
 import sys  # Library for system-specific parameters and functions
 import smtplib
 from email.mime.text import MIMEText
-import xml.etree.ElementTree as ET  # XML parsing library
 import pandas as pd  # Data analysis and manipulation tool
 import os
 import datetime
 import time
-
+import json
+import yaml
 import pytz  # For timezone handling
 import inspect
-import re 
 import csv
+import xml.etree.ElementTree as ET
 
 # %% Functions
 
@@ -661,3 +661,76 @@ def sleep_with_count(seconds, refresh_rate=0.1, count_up=False, text_color="cyan
 
 
 
+
+def load_dict_from_file(filepath):
+    """
+    Loads a structured data file (.json, .yaml/.yml, or .xml) into a Python dictionary.
+
+    Parameters:
+    filepath (str): The path to the file.
+
+    Returns:
+    dict: Parsed data as a dictionary.
+    """
+    ext = os.path.splitext(filepath)[1].lower()
+    with open(filepath, 'r', encoding='utf-8') as file:
+        if ext == '.json':
+            return json.load(file)
+        elif ext in ('.yaml', '.yml'):
+            return yaml.safe_load(file)
+        elif ext == '.xml':
+            tree = ET.parse(file)
+            root = tree.getroot()
+            return {root.tag: _xml_to_dict(root)}
+        else:
+            raise ValueError(f"Unsupported file extension: {ext}")
+
+def _xml_to_dict(element):
+    """
+    Recursively converts an XML element and its children into a dictionary.
+    """
+    # Convert children
+    children = list(element)
+    if children:
+        result = {}
+        for child in children:
+            child_dict = _xml_to_dict(child)
+            if child.tag in result:
+                # Promote to list if tag repeats
+                if not isinstance(result[child.tag], list):
+                    result[child.tag] = [result[child.tag]]
+                result[child.tag].append(child_dict)
+            else:
+                result[child.tag] = child_dict
+        return result
+    else:
+        # Include attributes and text
+        if element.attrib:
+            return {**element.attrib, '_text': element.text.strip() if element.text else ''}
+        return element.text.strip() if element.text else ''
+
+
+
+def _xml_to_dict(element):
+    """
+    Recursively converts an XML element and its children into a dictionary.
+    """
+    # Convert children
+    children = list(element)
+    if children:
+        result = {}
+        for child in children:
+            child_dict = _xml_to_dict(child)
+            if child.tag in result:
+                # Promote to list if tag repeats
+                if not isinstance(result[child.tag], list):
+                    result[child.tag] = [result[child.tag]]
+                result[child.tag].append(child_dict)
+            else:
+                result[child.tag] = child_dict
+        return result
+    else:
+        # Include attributes and text
+        if element.attrib:
+            return {**element.attrib, '_text': element.text.strip() if element.text else ''}
+        return element.text.strip() if element.text else ''
