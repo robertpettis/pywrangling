@@ -119,50 +119,126 @@ def rename_columns(df, old_names, new_names=None, prefix=None, suffix=None, remo
 
 
 
-def move_column(df, col_to_move, pos='last', ref_col=None):
+# def move_column(df, col_to_move, pos='last', ref_col=None):
+#     """
+#     This function moves a column in a DataFrame to a specified position.
+
+#     Parameters:
+#     df (pd.DataFrame): DataFrame to modify
+#     col_to_move (str): Name of the column to move
+#     pos (str or int, optional): Position to move the column to. Can be 'first', 'last', 'before', 'after', or an integer.
+#         If 'before' or 'after', ref_col must be provided. Defaults to 'last'.
+#     ref_col (str, optional): Reference column for 'before' or 'after' positions. Not used for other positions.
+
+#     Returns:
+#     pd.DataFrame: Modified DataFrame
+#     """
+#     # Make a list of all columns in the DataFrame
+#     cols = df.columns.tolist()
+
+#     # Remove the column to be moved from the list
+#     cols.remove(col_to_move)
+
+#     # Check the desired position and adjust the list of columns accordingly
+#     if pos == 'first':
+#         # If 'first', add the column to the start of the list
+#         cols = [col_to_move] + cols
+#     elif pos == 'last':
+#         # If 'last' (or unspecified), add the column to the end of the list
+#         cols = cols + [col_to_move]
+#     elif pos == 'before' and ref_col:
+#         # If 'before' and a reference column is specified, find the index of the reference column
+#         # and insert the column to be moved before it
+#         idx = cols.index(ref_col)
+#         cols = cols[:idx] + [col_to_move] + cols[idx:]
+#     elif pos == 'after' and ref_col:
+#         # Similar to 'before', but insert the column to be moved after the reference column
+#         idx = cols.index(ref_col)
+#         cols = cols[:idx + 1] + [col_to_move] + cols[idx + 1:]
+#     elif isinstance(pos, int):
+#         # If an integer is given, insert the column to be moved at that position
+#         # (assuming that the position is 1-indexed as in Stata, hence the -1)
+#         cols = cols[:pos - 1] + [col_to_move] + cols[pos - 1:]
+
+#     # Create a new DataFrame with the columns in the desired order
+#     return df[cols]
+
+def move_column(df, columns_to_move, pos='last', ref_col=None, return_renamed=False):
     """
-    This function moves a column in a DataFrame to a specified position.
+    Moves one or more columns to a specified position in a DataFrame, ensuring no duplicate column names.
 
     Parameters:
-    df (pd.DataFrame): DataFrame to modify
-    col_to_move (str): Name of the column to move
-    pos (str or int, optional): Position to move the column to. Can be 'first', 'last', 'before', 'after', or an integer.
-        If 'before' or 'after', ref_col must be provided. Defaults to 'last'.
-    ref_col (str, optional): Reference column for 'before' or 'after' positions. Not used for other positions.
+    df (pd.DataFrame): DataFrame to modify.
+    columns_to_move (str or list of str): Name or list of names of the columns to move.
+    pos (str or int, optional): Position to move the column(s) to. Can be:
+        - 'first': move to the beginning
+        - 'last': move to the end (default)
+        - 'before': move before another column (requires ref_col)
+        - 'after': move after another column (requires ref_col)
+        - int: 1-based index like Stata (1 = first)
+    ref_col (str, optional): Reference column used with 'before' or 'after'.
+    return_renamed (bool, optional): If True, returns (df, renamed_dict).
 
     Returns:
-    pd.DataFrame: Modified DataFrame
+    pd.DataFrame or (pd.DataFrame, dict): Reordered DataFrame, with optional renamed column log.
     """
-    # Make a list of all columns in the DataFrame
+    from collections import Counter
+
+    # Normalize single string input
+    if isinstance(columns_to_move, str):
+        columns_to_move = [columns_to_move]
+
+    # Deduplicate columns
+    counts = Counter()
+    new_cols = []
+    renamed = {}
+
+    for col in df.columns:
+        counts[col] += 1
+        if counts[col] == 1:
+            new_cols.append(col)
+        else:
+            new_name = f"{col}.{counts[col]-1}"
+            new_cols.append(new_name)
+            renamed[col] = renamed.get(col, []) + [new_name]
+
+    if renamed:
+        print("⚠️  Duplicate column names found and renamed:")
+        for base, new_versions in renamed.items():
+            print(f"   • '{base}' → {', '.join(new_versions)}")
+
+    df.columns = new_cols
     cols = df.columns.tolist()
 
-    # Remove the column to be moved from the list
-    cols.remove(col_to_move)
+    # Keep only existing columns from the requested list
+    columns_to_move = [col for col in columns_to_move if col in cols]
 
-    # Check the desired position and adjust the list of columns accordingly
+    # Remove columns to move from current order
+    cols = [col for col in cols if col not in columns_to_move]
+
+    # Insert at desired location
     if pos == 'first':
-        # If 'first', add the column to the start of the list
-        cols = [col_to_move] + cols
+        cols = columns_to_move + cols
     elif pos == 'last':
-        # If 'last' (or unspecified), add the column to the end of the list
-        cols = cols + [col_to_move]
-    elif pos == 'before' and ref_col:
-        # If 'before' and a reference column is specified, find the index of the reference column
-        # and insert the column to be moved before it
+        cols = cols + columns_to_move
+    elif pos == 'before':
+        if not ref_col or ref_col not in cols:
+            raise ValueError(f"Reference column '{ref_col}' not found for 'before'.")
         idx = cols.index(ref_col)
-        cols = cols[:idx] + [col_to_move] + cols[idx:]
-    elif pos == 'after' and ref_col:
-        # Similar to 'before', but insert the column to be moved after the reference column
+        cols = cols[:idx] + columns_to_move + cols[idx:]
+    elif pos == 'after':
+        if not ref_col or ref_col not in cols:
+            raise ValueError(f"Reference column '{ref_col}' not found for 'after'.")
         idx = cols.index(ref_col)
-        cols = cols[:idx + 1] + [col_to_move] + cols[idx + 1:]
+        cols = cols[:idx + 1] + columns_to_move + cols[idx + 1:]
     elif isinstance(pos, int):
-        # If an integer is given, insert the column to be moved at that position
-        # (assuming that the position is 1-indexed as in Stata, hence the -1)
-        cols = cols[:pos - 1] + [col_to_move] + cols[pos - 1:]
+        idx = max(0, min(pos - 1, len(cols)))
+        cols = cols[:idx] + columns_to_move + cols[idx:]
+    else:
+        raise ValueError(f"Invalid 'pos' argument: {pos}")
 
-    # Create a new DataFrame with the columns in the desired order
-    return df[cols]
-
+    result = df.loc[:, cols]
+    return (result, renamed) if return_renamed else result
 
 
 
