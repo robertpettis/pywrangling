@@ -365,8 +365,9 @@ def is_time_in_range(day_time_pairs, timezone):
 
     if current_day in day_time_pairs:
         for start_str, end_str in day_time_pairs[current_day]:
-            start_time = datetime.strptime(start_str, "%H:%M").time()
-            end_time = datetime.strptime(end_str, "%H:%M").time()
+            start_time = datetime.datetime.strptime(start_str, "%H:%M").time()
+            end_time = datetime.datetime.strptime(end_str, "%H:%M").time()
+
             
             # Check if the current time falls within the time range
             if start_time <= current_time <= end_time:
