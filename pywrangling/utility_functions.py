@@ -358,7 +358,8 @@ def is_time_in_range(day_time_pairs, timezone):
     """
     # Get the current time in the specified timezone
     tz = pytz.timezone(timezone)
-    now = datetime.now(tz)
+    #now = datetime.now(tz)    #Started getting an error for this. Perhaps there was an update. 
+    now = datetime.datetime.now(tz)
     current_day = now.strftime('%A')
     current_time = now.time()
 
