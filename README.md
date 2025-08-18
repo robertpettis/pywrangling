@@ -260,67 +260,7 @@ print(df_new)
 2  Percussion; Euphonium; Clarinet     2
 ```
 
-## criminal_justice_functions
-```python
-import pywrangling.criminal_justice_functions as cf
-```
 
-### `create_top_charge`
-
-This function creates a new column 'top_charge' in the dataframe. Note that the charges are determined based on their sentences when defendants have a single charge. 
-
-```python
-df = pd.DataFrame({
-    'statute_col': ['Battery', 'Assault', 'Battery;Assault', 'Assault;Battery', 'Theft', 'Battery;Theft', 'Theft;Assault', 'Assault;Theft'],
-    'total_charges_col': [1, 1, 2, 2, 1, 2, 2, 2],
-    'convicted_col': [1, 1, 1, 1, 0, 1, 0, 1],
-    'incarceration_days_col': [10, 20, 15, 25, 5, 30, 10, 40],
-    'total_fine_col': [100, 200, 150, 250, 50, 300, 100, 400]
-})
-
-df = cf.create_top_charge(df, 'statute_col', 'total_charges_col', 'convicted_col', 'incarceration_days_col', 'total_fine_col')
-print(df)
-```
-
-**Output:**
-
-```
-statute_col	total_charges_col	convicted_col	incarceration_days_col	total_fine_col	top_charge
-0	Battery	1	1	10	100	Battery
-1	Assault	1	1	20	200	Assault
-2	Battery;Assault	2	1	15	150	Assault
-3	Assault;Battery	2	1	25	250	Assault
-4	Theft	1	0	5	50	Theft
-5	Battery;Theft	2	1	30	300	Battery
-6	Theft;Assault	2	0	10	100	Assault
-7	Assault;Theft	2	1	40	400	Assault
-```
-
-### `recidivism`
-
-This function calculates recidivism based on a given number of years and conviction status.
-
-```python
-df = pd.DataFrame({
-    'Date': pd.date_range('2023-01-01', periods=5),
-    'PersonID': [1, 1, 2, 2, 2],
-    'Convicted': ['Yes', 'No', 'Yes', 'Yes', 'No']
-})
-
-df = cf.recidivism(df, 'Date', 'PersonID', 1, only_convictions=True, conviction_col='Convicted', conviction_value='Yes')
-print(df)
-```
-
-**Output:**
-
-```
-        Date  PersonID Convicted  recidivism
-0 2023-01-01         1       Yes           0
-1 2023-01-02         1        No           0
-2 2023-01-03         2       Yes           0
-3 2023-01-04         2       Yes           1
-4 2023-01-05         2        No           1
-```
 
 ## utility_functions
 ```python
