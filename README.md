@@ -165,7 +165,7 @@ df = pd.DataFrame({
 
 condition = "(B == 'mouse') | (B[n-1] == 'dog') & (C[n+1] > -0.4)"
 new_value = 'B[n-2]'
-df_modified = wf.replace(df, 'A', condition, new_value)
+df_modified = wf.replace(df, 'A', new_value, condition)
 print(df_modified)
 ```
 
