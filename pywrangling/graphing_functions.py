@@ -28,9 +28,6 @@ def set_top_ylabel(ax, label, pad=0.02, **text_kwargs):
     >>> ax.set_xlabel("X")
     >>> plt.show()
 
-    This replaces the usual:
-        ax.set_ylabel("Y")
-    but keeps the label horizontal and centered at the top.
     """
     ax.text(
         0.0,                # x: exactly on the y-axis
