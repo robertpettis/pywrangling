@@ -1,6 +1,14 @@
 import matplotlib.pyplot as plt
 import numpy as np
 import matplotlib.patheffects as pe
+import numpy as np
+import matplotlib as mpl
+import matplotlib.pyplot as plt
+from cycler import cycler
+from pathlib import Path
+import json
+
+
 
 
 def set_top_ylabel(ax, label, pad=0.02, **text_kwargs):
@@ -385,7 +393,7 @@ def use_plotplainblind_matched(kind="line"):
     >>> plt.tight_layout()
     >>> plt.show()
     """
-    
+
     colors = [
         "#000000",  # black
         "#9E9E9E",  # gray
