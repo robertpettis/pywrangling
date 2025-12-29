@@ -1,14 +1,11 @@
 import matplotlib.pyplot as plt
 import numpy as np
 import matplotlib.patheffects as pe
-import numpy as np
 import matplotlib as mpl
-import matplotlib.pyplot as plt
 from cycler import cycler
 from pathlib import Path
 import json
-
-
+from matplotlib.ticker import FuncFormatter, FixedLocator
 
 
 def set_top_ylabel(ax, label, pad=0.02, **text_kwargs):
@@ -306,16 +303,6 @@ def label_line(
 
 
 
-
-
-
-
-
-
-
-
-
-
 def use_plotplainblind_matched(kind="line"):
     """
     Configure Matplotlib rcParams to mimic Stata's `plotplainblind` scheme
@@ -466,3 +453,156 @@ def use_plotplainblind_matched(kind="line"):
         mpl.rcParams["axes.prop_cycle"] = cycler(color=["#4D4D4D"])
     else:
         raise ValueError("kind must be one of: line, scatter, connected, mono")
+
+
+
+
+
+def apply_pseudo_log_y(
+    ax,
+    *,
+    exp_min=0,
+    exp_max=5,
+    base=10,
+    fmt="plain",
+    minor=False,
+    label_prefix="",
+    label_suffix="",
+):
+    """
+    Apply a "pseudo-log" y-axis labeling scheme on a *linear* axis, with an
+    arbitrary integer base (default 10).
+
+    Economists often speak in natural logs (base e) when modeling, but for
+    *presentation* it can be handy to show “log-like” spacing with decade-style
+    labels. This helper gives you that presentation trick: the axis is linear
+    in log space (exponents), but the tick labels are displayed back in levels
+    as powers of an integer base.
+
+    What it does
+    ------------
+    Tick *positions* remain evenly spaced (linear), but tick *labels* are shown
+    as powers of `base`:
+
+        y = 0, 1, 2, 3, ...  ->  labels = base^0, base^1, base^2, base^3, ...
+
+    With base=10 this becomes 1, 10, 100, 1000, ... (the “add a zero each tick”
+    look). With base=2 it becomes 1, 2, 4, 8, 16, ... etc.
+
+    How to use it correctly
+    -----------------------
+    You should plot your data in *exponent space* first:
+
+        y_exp = log_base(y_true)
+
+    Then call this function so the y-axis (which is linear in y_exp) is labeled
+    in the original units (y_true) via powers of `base`.
+
+    Math: why this works
+    --------------------
+    A true log-scale plot for positive values y_true uses the coordinate
+
+        u = log_b(y_true),
+
+    where b is the base. Equal increments in u correspond to multiplicative
+    changes in y_true:
+
+        u2 - u1 = 1
+        <=> log_b(y2) - log_b(y1) = 1
+        <=> log_b(y2 / y1) = 1
+        <=> y2 / y1 = b
+        <=> y2 = b * y1.
+
+    So ticks one unit apart in u represent constant ratios (×b) in levels. That’s
+    why log axes label integer u values as:
+
+        b^0, b^1, b^2, ...
+
+    This function recreates that logic without switching the axis to log mode:
+    it fixes major tick locations at integer u values and formats each label
+    as b^u.
+
+    Important: the data must be plotted in u = log_b(y_true) space. If you plot
+    y_true directly on a linear axis and only relabel ticks as b^u, the geometry
+    will not match a log axis.
+
+    Base handling
+    -------------
+    `base` is intended to be an integer >= 2. If you pass a non-integer (e.g.,
+    9.7) it is rounded to the nearest integer for labeling consistency.
+
+    Parameters
+    ----------
+    ax : matplotlib.axes.Axes
+        Axes to modify.
+
+    exp_min, exp_max : int
+        Inclusive exponent range to show on the y-axis.
+
+    base : int, default 10
+        Integer base used for labels. Values are rounded to the nearest integer
+        and must be >= 2.
+
+    fmt : {"plain", "comma", "scientific"}, default "plain"
+        How to format displayed labels:
+        - "plain": 1, 10, 100, ...
+        - "comma": 1, 10, 100, 1,000, ...
+        - "scientific": 1e0, 1e1, 1e2, ...
+
+    minor : bool, default False
+        If True, add minor ticks between integer exponents (no labels). For base
+        b, minor ticks are placed at u = k + log_b(m) for m=2..(b-1). (If b is
+        large, this can be visually busy.)
+
+    label_prefix, label_suffix : str
+        Optional text to wrap labels (e.g., "$", " USD").
+
+    Returns
+    -------
+    ax : matplotlib.axes.Axes
+        The modified axes (for chaining).
+    """
+    import numpy as np
+    from matplotlib.ticker import FuncFormatter, FixedLocator
+
+    # Enforce integer base (default 10) and basic validity
+    b = int(np.round(base))
+    if b < 2:
+        raise ValueError("base must round to an integer >= 2")
+
+    # Fixed major tick positions in exponent space
+    exps = np.arange(exp_min, exp_max + 1, 1)
+    ax.yaxis.set_major_locator(FixedLocator(exps))
+
+    def _format_from_exp(exp, _pos=None):
+        val = b ** exp
+
+        if fmt == "plain":
+            s = f"{val:g}"
+        elif fmt == "comma":
+            # Works best when val is integer-ish
+            if abs(val - round(val)) < 1e-9:
+                s = f"{int(round(val)):,}"
+            else:
+                s = f"{val:,.3g}"
+        elif fmt == "scientific":
+            s = f"{val:.0e}"
+        else:
+            raise ValueError("fmt must be one of: 'plain', 'comma', 'scientific'")
+
+        return f"{label_prefix}{s}{label_suffix}"
+
+    ax.yaxis.set_major_formatter(FuncFormatter(_format_from_exp))
+
+    if minor:
+        # Minor ticks between integer exponents: u = k + log_b(m)
+        # for m=2..b-1. If b is huge this gets crowded; still correct.
+        if b == 2:
+            minor_offsets = np.array([])  # no minors between 1 and 2
+        else:
+            minor_offsets = np.log(np.arange(2, b)) / np.log(b)
+
+        minor_locs = np.concatenate([e + minor_offsets for e in exps[:-1]]) if len(minor_offsets) else np.array([])
+        ax.yaxis.set_minor_locator(FixedLocator(minor_locs))
+
+    return ax
