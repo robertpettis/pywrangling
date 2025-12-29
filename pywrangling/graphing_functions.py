@@ -295,3 +295,166 @@ def label_line(
         print(f"[label_line] '{text}' at data coords: (x={x0:.4f}, y={y0:.4f})")
 
     return line, (x0, y0)
+
+
+
+
+
+
+
+
+
+
+
+
+def use_plotplainblind_matched(kind="line"):
+def use_plotplainblind_matched(kind="line"):
+    """
+    Configure Matplotlib rcParams to mimic Stata's `plotplainblind` scheme
+    (color/linestyle/marker ordering) and a "plain" white-background aesthetic.
+
+    This is meant to be called once near the top of a plotting script (or at the
+    start of a notebook cell) before you create figures. It updates global
+    Matplotlib settings via `matplotlib.rcParams.update(...)` and sets an
+    `axes.prop_cycle` that controls the default sequence of colors/linestyles/
+    markers applied as you add multiple series.
+
+    Parameters
+    ----------
+    kind : {"line", "scatter", "connected", "mono"}, default "line"
+        Controls how the Stata-like ordering is emulated:
+
+        - "line":
+            Cycle through a Stata-ish palette while also cycling linestyles.
+            Use when you have multiple lines and want them differentiated even
+            if printed in grayscale.
+        - "scatter":
+            Cycle through colors while also cycling markers.
+            Use for point-only plots where shape matters.
+        - "connected":
+            Cycle through colors + linestyles + markers.
+            Use for connected scatterplots / time series with markers.
+        - "mono":
+            Force a single grayscale color (useful for bars/box/dot/errorbars
+            when you want everything uniform).
+
+    Notes
+    -----
+    - This function mutates global Matplotlib defaults (rcParams). If you want
+      the style to apply only within a specific block, wrap calls in
+      `with plt.rc_context(): ...` and call this inside the context.
+    - The label utilities in this module are designed to pair nicely with this
+      style:
+        * `label_line(...)` places a text label directly on the line in the same
+          color as the line (optionally with a white stroke for readability).
+        * `pick_label_xy(...)` chooses a good anchor point for the label.
+        * `set_top_ylabel(...)` places a horizontal y-label above the axes.
+
+    Full Example
+    ------------
+    This example uses *all* helpers above: style setup, top y-label, and
+    color-matched on-line labels with automatic placement.
+
+    >>> import numpy as np
+    >>> import matplotlib.pyplot as plt
+    >>>
+    >>> # 1) Apply Stata-like style + cycle logic
+    >>> use_plotplainblind_matched(kind="connected")
+    >>>
+    >>> # 2) Fake data: three series with different shapes
+    >>> x = np.arange(1, 25)
+    >>> y_a = np.log(x) + 0.08*np.sin(x)
+    >>> y_b = np.log(x) - 0.25 + 0.06*np.cos(1.2*x)
+    >>> y_c = np.log(x) - 0.50 + 0.04*np.sin(0.7*x + 1.0)
+    >>>
+    >>> # 3) Build figure
+    >>> fig, ax = plt.subplots(figsize=(9, 4.5))
+    >>>
+    >>> # 4) Plot + label each line directly (no legend needed)
+    >>> label_line(ax, x, y_a, "Series A", prefer="whitespace")
+    >>> label_line(ax, x, y_b, "Series B", prefer="whitespace")
+    >>> label_line(ax, x, y_c, "Series C", prefer="whitespace")
+    >>>
+    >>> # 5) Axis labeling (y label on top, Stata-ish feel)
+    >>> ax.set_xlabel("X (index)")
+    >>> set_top_ylabel(ax, "log(scale) + perturbation", fontsize=14, fontweight="bold")
+    >>> ax.set_title("Stata-like plotplainblind styling with on-line labels")
+    >>>
+    >>> # 6) Optional cosmetics
+    >>> ax.margins(x=0.02)
+    >>> plt.tight_layout()
+    >>> plt.show()
+    """
+    
+    colors = [
+        "#000000",  # black
+        "#9E9E9E",  # gray
+        "#4DA3FF",  # light blue
+        "#00A087",  # teal
+        "#CC79A7",  # pink
+        "#E69F00",  # orange
+        "#0072B2",  # dark blue
+        "#E69F00",  # gold-ish (repeat ok for long cycles)
+        "#F0E442",  # yellow
+        "#BDBDBD",  # light gray
+    ]
+
+    linestyles = [
+        "-",                # solid
+        (0, (6, 4)),        # dashed
+        (0, (1, 2)),        # dotted
+        (0, (1, 3, 4, 3)),  # dotdash-ish
+        (0, (4, 2, 1, 2)),  # dashdot-ish
+        (0, (3, 2)),        # shortdash
+        "-",                # repeat
+        (0, (4, 2, 1, 2)),
+        (0, (3, 2)),
+        (0, (8, 4)),        # longdash
+    ]
+
+    markers = ["o", "s", "D", "^", "+", "x", "o", "D", "s", "^"]
+
+    mpl.rcParams.update({
+        "figure.facecolor": "white",
+        "axes.facecolor": "white",
+        "axes.edgecolor": "#9E9E9E",
+        "axes.linewidth": 1.2,
+        "axes.spines.top": False,
+        "axes.spines.right": False,
+
+        "axes.grid": True,
+        "axes.grid.axis": "both",
+        "grid.color": "#BDBDBD",
+        "grid.linestyle": (0, (1, 4)),  # dotted grid
+        "grid.linewidth": 1.0,
+
+        "xtick.color": "#9E9E9E",
+        "ytick.color": "#9E9E9E",
+        "xtick.labelcolor": "black",
+        "ytick.labelcolor": "black",
+
+        "font.family": "sans-serif",
+        "font.sans-serif": ["Arial", "Helvetica", "DejaVu Sans"],
+        "font.size": 13,
+        "axes.titlesize": 20,
+        "axes.labelsize": 18,
+
+        "lines.linewidth": 3.0,
+        "lines.markersize": 7,
+
+        "legend.frameon": False,
+        "legend.fontsize": 14,
+    })
+
+    if kind == "line":
+        mpl.rcParams["axes.prop_cycle"] = cycler(color=colors) + cycler(linestyle=linestyles)
+    elif kind == "scatter":
+        mpl.rcParams["axes.prop_cycle"] = cycler(color=colors) + cycler(marker=markers)
+    elif kind == "connected":
+        mpl.rcParams["axes.prop_cycle"] = (
+            cycler(color=colors) + cycler(linestyle=linestyles) + cycler(marker=markers)
+        )
+    elif kind == "mono":
+        mpl.rcParams["axes.prop_cycle"] = cycler(color=["#4D4D4D"])
+    else:
+        raise ValueError("kind must be one of: line, scatter, connected, mono")
