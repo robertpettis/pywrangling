@@ -307,7 +307,7 @@ def label_line(
 
 
 
-def use_plotplainblind_matched(kind="line"):
+
 def use_plotplainblind_matched(kind="line"):
     """
     Configure Matplotlib rcParams to mimic Stata's `plotplainblind` scheme
