@@ -483,7 +483,7 @@ def apply_pseudo_log_y(
 
     Notes
     -----
-    Matplotlib can independently display axis-wide scientific/offset text
+    Matplotlib can independently display axis-wide offset/scientific annotation
     (e.g., "1e3" or "2.98e+03") even when you provide a custom tick formatter.
     This function disables that behavior unless fmt == "scientific", so the
     y-axis never appears in scientific notation unless you explicitly request it.
@@ -548,13 +548,15 @@ def apply_pseudo_log_y(
             val_disp = val
 
         if fmt == "plain":
+            # Use general formatting, but we will additionally prevent axis-level
+            # scientific/offset text below (the common source of surprises).
             s = f"{val_disp:g}"
 
         elif fmt == "comma":
             if isinstance(val_disp, int):
                 s = f"{val_disp:,}"
             else:
-                # If the user gave label_round, interpret it as decimals for comma formatting.
+                # If label_round is given, treat it as decimals for comma formatting.
                 if label_round is not None:
                     s = f"{float(val_disp):,.{int(label_round)}f}"
                 else:
@@ -570,10 +572,13 @@ def apply_pseudo_log_y(
 
     ax.yaxis.set_major_formatter(FuncFormatter(_format_from_exp))
 
-    # Enforce: no axis-level scientific/offset unless explicitly requested.
+    # Enforce: no axis-level offset/scientific annotation unless explicitly requested.
+    # NOTE: ax.ticklabel_format() only works with ScalarFormatter, so we avoid it.
     if fmt != "scientific":
-        ax.ticklabel_format(axis="y", style="plain", useOffset=False)
         ax.yaxis.get_offset_text().set_visible(False)
+        major_fmt = ax.yaxis.get_major_formatter()
+        if hasattr(major_fmt, "set_useOffset"):
+            major_fmt.set_useOffset(False)
 
     # Minor ticks
     if minor:
