@@ -476,53 +476,12 @@ def apply_pseudo_log_y(
     The axis is linear in exponent space (u), but tick labels are shown in
     level space as base**u.
 
-    Unlike a true log axis, we are not changing Matplotlib's scale; we are
-    only fixing tick locations (in u) and formatting their labels (in levels).
-    This is useful when you're already plotting in log/exponent space but want
-    axis labels to read in levels.
-
     Notes
     -----
-    Matplotlib can independently display axis-wide offset/scientific annotation
-    (e.g., "1e3" or "2.98e+03") even when you provide a custom tick formatter.
-    This function disables that behavior unless fmt == "scientific", so the
-    y-axis never appears in scientific notation unless you explicitly request it.
-
-    Parameters
-    ----------
-    ax : matplotlib.axes.Axes
-        Axes to modify.
-
-    exp_min, exp_max : int
-        Inclusive exponent range to show on the y-axis.
-
-    base : float, default 10.0
-        Base used for labels. Can be 10, e, 2, etc.
-        Must satisfy base > 0 and base != 1.
-
-    fmt : {"plain", "comma", "scientific"}, default "plain"
-        Label formatting style.
-
-    minor : bool, default False
-        If True, add minor ticks between integer exponents (no labels).
-        - If base is an integer >= 3, minors use u = k + log_b(m) for m=2..base-1.
-        - Otherwise, minors use a generic set of multipliers (2..9) via u = k + log_b(m).
-
-    label_round : int or None, default None
-        If not None, round the *label value* (base**exp) to this many decimals
-        for display (does NOT round the base).
-
-    label_int_if_close : bool, default True
-        If True and the label value is very close to an integer, display it as
-        an integer (helps avoid 99.999999 -> 100).
-
-    label_prefix, label_suffix : str
-        Optional text to wrap labels (e.g., "$", " USD").
-
-    Returns
-    -------
-    ax : matplotlib.axes.Axes
-        The modified axes.
+    - This function *never* displays scientific notation unless fmt=="scientific".
+      (No '1.1e+03' surprises for plain/comma.)
+    - Matplotlib can also display separate axis offset/scientific text; we hide
+      that as well unless fmt=="scientific".
     """
     import numpy as np
     from matplotlib.ticker import FuncFormatter, FixedLocator
@@ -535,34 +494,61 @@ def apply_pseudo_log_y(
     exps = np.arange(exp_min, exp_max + 1, 1)
     ax.yaxis.set_major_locator(FixedLocator(exps))
 
+    def _strip_trailing_zeros(s: str) -> str:
+        # For fixed-point strings like "148.400" -> "148.4", "20.000" -> "20"
+        if "." in s:
+            s = s.rstrip("0").rstrip(".")
+        return s
+
+    def _auto_decimals(v: float) -> int:
+        # Reasonable default readability without scientific notation
+        av = abs(float(v))
+        if av >= 1000:
+            return 0 if abs(v - round(v)) < 1e-9 else 1
+        if av >= 100:
+            return 0 if abs(v - round(v)) < 1e-9 else 1
+        if av >= 10:
+            return 0 if abs(v - round(v)) < 1e-9 else 2
+        return 0 if abs(v - round(v)) < 1e-9 else 3
+
+    def _format_plain_or_comma(v: float, commas: bool) -> str:
+        # Never scientific; always fixed-point with trimming.
+        if label_round is None:
+            dec = _auto_decimals(v)
+        else:
+            dec = int(label_round)
+
+        if commas:
+            s = f"{float(v):,.{dec}f}"
+        else:
+            s = f"{float(v):.{dec}f}"
+
+        return _strip_trailing_zeros(s)
+
     def _format_from_exp(exp, _pos=None):
         val = b ** exp
 
-        # Round the *value* for display, not the base
+        # Optional rounding of the *value* (not the base)
         if label_round is not None:
             val = np.round(val, int(label_round))
 
         if label_int_if_close and np.isfinite(val) and abs(val - round(val)) < 1e-9:
             val_disp = int(round(val))
         else:
-            val_disp = val
+            val_disp = float(val)
 
         if fmt == "plain":
-            # Use general formatting, but we will additionally prevent axis-level
-            # scientific/offset text below (the common source of surprises).
-            s = f"{val_disp:g}"
+            s = _format_plain_or_comma(val_disp, commas=False)
 
         elif fmt == "comma":
+            # For ints, show comma integer; for floats, fixed-point with commas.
             if isinstance(val_disp, int):
                 s = f"{val_disp:,}"
             else:
-                # If label_round is given, treat it as decimals for comma formatting.
-                if label_round is not None:
-                    s = f"{float(val_disp):,.{int(label_round)}f}"
-                else:
-                    s = f"{float(val_disp):,.3g}"
+                s = _format_plain_or_comma(val_disp, commas=True)
 
         elif fmt == "scientific":
+            # Explicitly requested scientific
             s = f"{float(val_disp):.0e}"
 
         else:
@@ -572,8 +558,7 @@ def apply_pseudo_log_y(
 
     ax.yaxis.set_major_formatter(FuncFormatter(_format_from_exp))
 
-    # Enforce: no axis-level offset/scientific annotation unless explicitly requested.
-    # NOTE: ax.ticklabel_format() only works with ScalarFormatter, so we avoid it.
+    # Hide Matplotlib's axis-level offset/scientific text unless explicitly requested
     if fmt != "scientific":
         ax.yaxis.get_offset_text().set_visible(False)
         major_fmt = ax.yaxis.get_major_formatter()
@@ -595,3 +580,4 @@ def apply_pseudo_log_y(
         ax.yaxis.set_minor_locator(FixedLocator(minor_locs))
 
     return ax
+
