@@ -303,7 +303,7 @@ def label_line(
 
 
 
-def use_plotplainblind_matched(kind="line"):
+def use_plotplainblind(kind="line"):
     """
     Configure Matplotlib rcParams to mimic Stata's `plotplainblind` scheme
     (color/linestyle/marker ordering) and a "plain" white-background aesthetic.
