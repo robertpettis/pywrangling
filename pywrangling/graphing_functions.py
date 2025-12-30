@@ -457,7 +457,6 @@ def use_plotplainblind_matched(kind="line"):
 
 
 
-
 def apply_pseudo_log_y(
     ax,
     *,
@@ -481,6 +480,13 @@ def apply_pseudo_log_y(
     only fixing tick locations (in u) and formatting their labels (in levels).
     This is useful when you're already plotting in log/exponent space but want
     axis labels to read in levels.
+
+    Notes
+    -----
+    Matplotlib can independently display axis-wide scientific/offset text
+    (e.g., "1e3" or "2.98e+03") even when you provide a custom tick formatter.
+    This function disables that behavior unless fmt == "scientific", so the
+    y-axis never appears in scientific notation unless you explicitly request it.
 
     Parameters
     ----------
@@ -543,13 +549,20 @@ def apply_pseudo_log_y(
 
         if fmt == "plain":
             s = f"{val_disp:g}"
+
         elif fmt == "comma":
             if isinstance(val_disp, int):
                 s = f"{val_disp:,}"
             else:
-                s = f"{val_disp:,.{(label_round if label_round is not None else 3)}g}"
+                # If the user gave label_round, interpret it as decimals for comma formatting.
+                if label_round is not None:
+                    s = f"{float(val_disp):,.{int(label_round)}f}"
+                else:
+                    s = f"{float(val_disp):,.3g}"
+
         elif fmt == "scientific":
             s = f"{float(val_disp):.0e}"
+
         else:
             raise ValueError("fmt must be one of: 'plain', 'comma', 'scientific'")
 
@@ -557,17 +570,20 @@ def apply_pseudo_log_y(
 
     ax.yaxis.set_major_formatter(FuncFormatter(_format_from_exp))
 
+    # Enforce: no axis-level scientific/offset unless explicitly requested.
+    if fmt != "scientific":
+        ax.ticklabel_format(axis="y", style="plain", useOffset=False)
+        ax.yaxis.get_offset_text().set_visible(False)
+
     # Minor ticks
     if minor:
-        # Prefer the "2..base-1" rule only when base is essentially an integer >= 3
         base_is_int = abs(b - round(b)) < 1e-9
         b_int = int(round(b)) if base_is_int else None
 
         if base_is_int and b_int >= 3:
             multipliers = np.arange(2, b_int)  # 2..b-1
         else:
-            # Generic set (still log-consistent): 2..9 between decades
-            multipliers = np.arange(2, 10)
+            multipliers = np.arange(2, 10)      # generic 2..9
 
         minor_offsets = np.log(multipliers) / np.log(b)  # log_b(m)
         minor_locs = np.concatenate([e + minor_offsets for e in exps[:-1]])
