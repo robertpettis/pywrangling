@@ -3,39 +3,30 @@ Beamer-style themes for Jupyter / RISE (Reveal.js) slides.
 
 What this module does
 ---------------------
-- Generates Beamer-inspired Reveal.js CSS themes (Copenhagen, Madrid, Warsaw,
+- Generates Beamer-inspired CSS themes (Copenhagen, Madrid, Warsaw,
   AnnArbor, Berkeley).
+- Injects CSS directly into the notebook via IPython.display so it works
+  immediately — no external rise.css file required.
+- Also writes rise.css for RISE compatibility.
 - Vendors Latin Modern (Computer-Modern-style) webfonts locally so slides
   look like Beamer.
 - Works on Windows and Linux with no system font installation.
-- Writes everything into the notebook working directory.
+- Writes asset files into the notebook working directory.
 
 Typical usage
 -------------
-In a notebook located one level ABOVE the pywrangling package:
+In a notebook cell:
 
-    from pywrangling.jupyter_slides_functions import create_beamer_rise_theme
-    create_beamer_rise_theme("copenhagen")
+    from pywrangling.jupyter_slides_functions import apply_beamer_theme
+    apply_beamer_theme("copenhagen")
 
-This will create:
-    rise.css
-    beamer_assets/
-        webfonts/
-            latinmodern-roman.css
-            fonts/*.woff2
-        themes/
-            beamer_copenhagen.css
+This will:
+  1. Inject all CSS into the notebook immediately (works in both normal
+     view and RISE slideshow).
+  2. Write rise.css + beamer_assets/ for RISE auto-loading.
 
-RISE automatically loads rise.css when you start the slideshow.
-
-Offline usage
--------------
-If you cannot download fonts:
-    create_beamer_rise_theme("copenhagen", skip_font_download=True)
-
-and manually populate:
-    beamer_assets/webfonts/latinmodern-roman.css
-    beamer_assets/webfonts/fonts/*.woff2
+To skip font downloading (offline):
+    apply_beamer_theme("copenhagen", skip_font_download=True)
 """
 
 from __future__ import annotations
@@ -52,6 +43,65 @@ from urllib.parse import urljoin, urlparse
 # Public API
 # =============================================================================
 
+def apply_beamer_theme(
+    theme: str = "copenhagen",
+    out_css: str = "rise.css",
+    assets_dir: str = "beamer_assets",
+    font_pack: str = "latin-modern",
+    skip_font_download: bool = False,
+):
+    """
+    Apply a Beamer-like theme to the current Jupyter notebook.
+
+    Injects CSS directly into the notebook output so that headers, footers,
+    block environments, and all Beamer styling are visible immediately — both
+    in normal notebook view and in RISE slideshow mode.
+
+    Also writes rise.css for RISE auto-loading on slideshow launch.
+
+    Parameters
+    ----------
+    theme : str
+        One of: copenhagen, madrid, warsaw, annarbor, berkeley.
+    out_css : str
+        Filename for the RISE CSS file (default "rise.css").
+    assets_dir : str
+        Directory for vendored fonts and theme CSS files.
+    font_pack : str
+        Font pack to use (only "latin-modern" supported).
+    skip_font_download : bool
+        If True, skip downloading fonts (use previously downloaded ones).
+
+    Returns
+    -------
+    IPython.display.HTML (auto-displayed in Jupyter) or Path if not in
+    a notebook environment.
+    """
+    # Also write rise.css for RISE compatibility
+    css_path = create_beamer_rise_theme(
+        theme=theme,
+        out_css=out_css,
+        assets_dir=assets_dir,
+        font_pack=font_pack,
+        skip_font_download=skip_font_download,
+    )
+
+    # Build the full CSS to inject
+    theme_key = _normalize_theme(theme)
+    full_css = _theme_css(theme_key) + "\n" + _GLOBAL_BEAMER_CSS
+
+    # Try to inject via IPython.display
+    try:
+        from IPython.display import HTML, display
+        style_html = f"<style>\n{full_css}\n</style>"
+        obj = HTML(style_html)
+        display(obj)
+        return obj
+    except ImportError:
+        # Not in a notebook — just return the path
+        return css_path
+
+
 def create_beamer_rise_theme(
     theme: str = "copenhagen",
     out_css: str = "rise.css",
@@ -61,6 +111,9 @@ def create_beamer_rise_theme(
 ) -> Path:
     """
     Create a Beamer-like Reveal.js/RISE theme in the current working directory.
+
+    Writes rise.css and beamer_assets/ files. For direct notebook injection,
+    use apply_beamer_theme() instead.
     """
     theme_key = _normalize_theme(theme)
 
@@ -177,13 +230,24 @@ def _compose_rise_css(
 
 # ---------------------------------------------------------------------------
 # Global CSS shared across all themes – Beamer base layout
+#
+# Uses BOTH .reveal selectors (for RISE/Reveal.js) AND bare selectors
+# (for normal notebook rendering) so styles appear in both modes.
 # ---------------------------------------------------------------------------
-_GLOBAL_BEAMER_CSS = """
+_GLOBAL_BEAMER_CSS = r"""
 /* ===== Global Beamer base ===== */
-.reveal {
-  font-family: "Latin Modern Roman", "Computer Modern", serif;
-  font-size: 28px;
+
+/* --- Font and base text --- */
+.reveal,
+.rendered_html,
+.jp-RenderedHTMLCommon,
+body {
+  font-family: "Latin Modern Roman", "Computer Modern", "CMU Serif", serif;
   line-height: 1.35;
+}
+
+.reveal {
+  font-size: 28px;
   color: #000;
 }
 
@@ -195,11 +259,12 @@ _GLOBAL_BEAMER_CSS = """
   padding: 60px 40px 50px 40px;
   box-sizing: border-box;
   text-align: left;
-  height: 100%;
 }
 
-.reveal h1, .reveal h2, .reveal h3 {
-  font-family: "Latin Modern Roman", "Computer Modern", serif;
+.reveal h1, .reveal h2, .reveal h3,
+.rendered_html h1, .rendered_html h2, .rendered_html h3,
+.jp-RenderedHTMLCommon h1, .jp-RenderedHTMLCommon h2, .jp-RenderedHTMLCommon h3 {
+  font-family: "Latin Modern Roman", "Computer Modern", "CMU Serif", serif;
   font-weight: bold;
   text-transform: none;
   letter-spacing: normal;
@@ -217,14 +282,27 @@ _GLOBAL_BEAMER_CSS = """
 }
 
 /* ===== Beamer block environments ===== */
-/* Use with HTML:
-   <div class="beamer-block">
-     <div class="block-title">Remark</div>
-     <div class="block-body">Sample text</div>
-   </div>
+/*
+  Usage in markdown cells:
+
+  <div class="beamer-block">
+    <div class="block-title">Remark</div>
+    <div class="block-body">Sample text</div>
+  </div>
+
+  <div class="beamer-block alert">
+    <div class="block-title">Important theorem</div>
+    <div class="block-body">Sample text in red box</div>
+  </div>
+
+  <div class="beamer-block example">
+    <div class="block-title">Examples</div>
+    <div class="block-body">Sample text in green box.</div>
+  </div>
 */
+
 .beamer-block {
-  margin: 0.6em 0;
+  margin: 0.7em 0;
   border-radius: 6px 6px 0 0;
   overflow: hidden;
 }
@@ -238,11 +316,13 @@ _GLOBAL_BEAMER_CSS = """
 }
 
 .beamer-block .block-body {
-  padding: 0.4em 0.7em;
+  padding: 0.45em 0.7em;
   font-size: 0.95em;
+  border: 1px solid rgba(0,0,0,0.08);
+  border-top: none;
 }
 
-/* Default block (blue/structure) */
+/* Default block (blue / structure colour) */
 .beamer-block .block-title {
   background: var(--bm-block-bg, #2D2D85);
 }
@@ -276,11 +356,11 @@ _GLOBAL_BEAMER_CSS = """
 .beamer-title-box {
   background: var(--bm-structure, #2D2D85);
   color: #fff;
-  padding: 0.5em 1em;
+  padding: 0.5em 1.2em;
   border-radius: 8px;
   text-align: center;
-  margin: 0.5em auto;
-  max-width: 80%;
+  margin: 0.8em auto;
+  max-width: 85%;
 }
 
 .beamer-title-box h1,
@@ -290,22 +370,28 @@ _GLOBAL_BEAMER_CSS = """
   background: none !important;
   border: none !important;
   text-align: center;
+  padding: 0 !important;
+  line-height: 1.3 !important;
+  position: static !important;
+  margin-left: 0 !important;
+  margin-right: 0 !important;
 }
 
 .beamer-title-box .subtitle {
-  font-size: 0.8em;
-  margin-top: 0.2em;
+  font-size: 0.75em;
+  margin-top: 0.3em;
+  color: #e0e0ff;
 }
 
 .beamer-authors {
   text-align: center;
-  margin-top: 1em;
+  margin-top: 1.2em;
   font-size: 0.9em;
 }
 
 .beamer-institutes {
   text-align: center;
-  font-size: 0.75em;
+  font-size: 0.72em;
   margin-top: 0.5em;
   color: #444;
 }
@@ -331,7 +417,7 @@ _GLOBAL_BEAMER_CSS = """
   object-fit: contain;
 }
 
-/* ===== Beamer footer bar ===== */
+/* ===== Beamer footer bar (HTML element version) ===== */
 .beamer-footline {
   position: fixed;
   bottom: 0;
@@ -356,7 +442,7 @@ _GLOBAL_BEAMER_CSS = """
   line-height: 28px;
 }
 
-/* ===== Beamer header bar ===== */
+/* ===== Beamer header bar (HTML element version) ===== */
 .beamer-headline {
   position: fixed;
   top: 0;
@@ -378,25 +464,6 @@ _GLOBAL_BEAMER_CSS = """
   align-items: center;
   padding: 0 16px;
 }
-
-/* ===== Navigation dots (mimics Beamer miniframes) ===== */
-.beamer-nav-dots {
-  display: inline-flex;
-  gap: 4px;
-  margin-left: 8px;
-}
-
-.beamer-nav-dots .dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: rgba(255,255,255,0.5);
-  display: inline-block;
-}
-
-.beamer-nav-dots .dot.active {
-  background: #fff;
-}
 """
 
 
@@ -407,23 +474,23 @@ def _theme_css(theme_key: str) -> str:
     # Copenhagen
     # =====================================================================
     if theme_key == "copenhagen":
-        return """
+        return r"""
 /* Copenhagen theme – outer: split, inner: rounded, colors: whale+orchid */
 :root {
-  --bm-structure: #2D2D85;
-  --bm-structure-dark: #1A1A5E;
+  --bm-structure:        #2D2D85;
+  --bm-structure-dark:   #1A1A5E;
   --bm-structure-darker: #0D0D3B;
 
-  /* Block colors (orchid) */
-  --bm-block-bg: #2D2D85;
-  --bm-block-body-bg: #DDDDE8;
-  --bm-alert-bg: #A00000;
-  --bm-alert-body-bg: #F2DEDE;
-  --bm-example-bg: #006000;
-  --bm-example-body-bg: #DEF0DE;
+  /* Block colours (orchid) */
+  --bm-block-bg:         #2D2D85;
+  --bm-block-body-bg:    #DDDDE8;
+  --bm-alert-bg:         #A00000;
+  --bm-alert-body-bg:    #F2DEDE;
+  --bm-example-bg:       #006000;
+  --bm-example-body-bg:  #DEF0DE;
 }
 
-/* --- Header bar (split outer theme) --- */
+/* ── Header bar (split outer theme) ── */
 .reveal::before {
   content: "";
   position: fixed;
@@ -431,13 +498,13 @@ def _theme_css(theme_key: str) -> str:
   width: 100%; height: 40px;
   background: linear-gradient(
     to right,
-    var(--bm-structure) 0%, var(--bm-structure) 50%,
+    var(--bm-structure) 0%,      var(--bm-structure) 50%,
     var(--bm-structure-dark) 50%, var(--bm-structure-dark) 100%
   );
   z-index: 1000;
 }
 
-/* --- Footer bar (split outer theme) --- */
+/* ── Footer bar (split outer theme) ── */
 .reveal::after {
   content: "";
   position: fixed;
@@ -445,14 +512,14 @@ def _theme_css(theme_key: str) -> str:
   width: 100%; height: 28px;
   background: linear-gradient(
     to right,
-    var(--bm-structure-darker) 0%, var(--bm-structure-darker) 30%,
-    var(--bm-structure-dark) 30%, var(--bm-structure-dark) 65%,
-    var(--bm-structure) 65%, var(--bm-structure) 100%
+    var(--bm-structure-darker) 0%,  var(--bm-structure-darker) 30%,
+    var(--bm-structure-dark)  30%,  var(--bm-structure-dark)  65%,
+    var(--bm-structure)       65%,  var(--bm-structure)       100%
   );
   z-index: 1000;
 }
 
-/* --- Slide title --- */
+/* ── Slide title sits inside the header bar ── */
 .reveal h2 {
   color: #fff;
   position: relative;
@@ -467,19 +534,18 @@ def _theme_css(theme_key: str) -> str:
   padding-left: 40px;
 }
 
-/* Title slide h1 stays in content area */
 .reveal h1 {
   color: #fff;
   font-size: 1.3em;
 }
 
-/* --- Slide content spacing below header --- */
+/* ── Content area spacing ── */
 .reveal .slides section {
   padding-top: 56px;
   padding-bottom: 44px;
 }
 
-/* --- Slide number --- */
+/* ── Slide number ── */
 .reveal .slide-number {
   background: var(--bm-structure);
   color: #fff;
@@ -488,7 +554,7 @@ def _theme_css(theme_key: str) -> str:
   z-index: 1002;
 }
 
-/* Title box on title slide */
+/* ── Title box on title slide ── */
 .beamer-title-box {
   background: var(--bm-structure);
   border-radius: 8px;
@@ -499,22 +565,22 @@ def _theme_css(theme_key: str) -> str:
     # Madrid
     # =====================================================================
     if theme_key == "madrid":
-        return """
+        return r"""
 /* Madrid theme – outer: infolines, inner: rounded, colors: whale+orchid */
 :root {
-  --bm-structure: #2D2D85;
-  --bm-structure-dark: #1A1A5E;
+  --bm-structure:        #2D2D85;
+  --bm-structure-dark:   #1A1A5E;
   --bm-structure-darker: #0D0D3B;
 
-  --bm-block-bg: #2D2D85;
-  --bm-block-body-bg: #DDDDE8;
-  --bm-alert-bg: #A00000;
-  --bm-alert-body-bg: #F2DEDE;
-  --bm-example-bg: #006000;
-  --bm-example-body-bg: #DEF0DE;
+  --bm-block-bg:         #2D2D85;
+  --bm-block-body-bg:    #DDDDE8;
+  --bm-alert-bg:         #A00000;
+  --bm-alert-body-bg:    #F2DEDE;
+  --bm-example-bg:       #006000;
+  --bm-example-body-bg:  #DEF0DE;
 }
 
-/* --- Header bar (infolines outer theme) --- */
+/* ── Header bar (infolines) ── */
 .reveal::before {
   content: "";
   position: fixed;
@@ -522,14 +588,14 @@ def _theme_css(theme_key: str) -> str:
   width: 100%; height: 40px;
   background: linear-gradient(
     to right,
-    var(--bm-structure-darker) 0%, var(--bm-structure-darker) 33%,
-    var(--bm-structure-dark) 33%, var(--bm-structure-dark) 66%,
-    var(--bm-structure) 66%, var(--bm-structure) 100%
+    var(--bm-structure-darker) 0%,  var(--bm-structure-darker) 33%,
+    var(--bm-structure-dark)   33%, var(--bm-structure-dark)   66%,
+    var(--bm-structure)        66%, var(--bm-structure)        100%
   );
   z-index: 1000;
 }
 
-/* --- Footer bar (infolines) --- */
+/* ── Footer bar (infolines) ── */
 .reveal::after {
   content: "";
   position: fixed;
@@ -537,14 +603,13 @@ def _theme_css(theme_key: str) -> str:
   width: 100%; height: 28px;
   background: linear-gradient(
     to right,
-    var(--bm-structure-darker) 0%, var(--bm-structure-darker) 33%,
-    var(--bm-structure-dark) 33%, var(--bm-structure-dark) 66%,
-    var(--bm-structure) 66%, var(--bm-structure) 100%
+    var(--bm-structure-darker) 0%,  var(--bm-structure-darker) 33%,
+    var(--bm-structure-dark)   33%, var(--bm-structure-dark)   66%,
+    var(--bm-structure)        66%, var(--bm-structure)        100%
   );
   z-index: 1000;
 }
 
-/* --- Slide title --- */
 .reveal h2 {
   background: var(--bm-structure);
   color: #fff;
@@ -567,8 +632,7 @@ def _theme_css(theme_key: str) -> str:
 .reveal .slide-number {
   background: var(--bm-structure);
   color: #fff;
-  bottom: 4px;
-  right: 8px;
+  bottom: 4px; right: 8px;
   z-index: 1002;
 }
 
@@ -582,22 +646,21 @@ def _theme_css(theme_key: str) -> str:
     # Warsaw
     # =====================================================================
     if theme_key == "warsaw":
-        return """
+        return r"""
 /* Warsaw theme – outer: shadow, inner: rounded, colors: whale+orchid */
 :root {
-  --bm-structure: #2D2D85;
-  --bm-structure-dark: #1A1A5E;
+  --bm-structure:        #2D2D85;
+  --bm-structure-dark:   #1A1A5E;
   --bm-structure-darker: #0D0D3B;
 
-  --bm-block-bg: #2D2D85;
-  --bm-block-body-bg: #DDDDE8;
-  --bm-alert-bg: #A00000;
-  --bm-alert-body-bg: #F2DEDE;
-  --bm-example-bg: #006000;
-  --bm-example-body-bg: #DEF0DE;
+  --bm-block-bg:         #2D2D85;
+  --bm-block-body-bg:    #DDDDE8;
+  --bm-alert-bg:         #A00000;
+  --bm-alert-body-bg:    #F2DEDE;
+  --bm-example-bg:       #006000;
+  --bm-example-body-bg:  #DEF0DE;
 }
 
-/* --- Header bar (shadow outer theme) --- */
 .reveal::before {
   content: "";
   position: fixed;
@@ -612,7 +675,6 @@ def _theme_css(theme_key: str) -> str:
   z-index: 1000;
 }
 
-/* --- Footer bar --- */
 .reveal::after {
   content: "";
   position: fixed;
@@ -620,14 +682,13 @@ def _theme_css(theme_key: str) -> str:
   width: 100%; height: 28px;
   background: linear-gradient(
     to right,
-    var(--bm-structure-darker) 0%, var(--bm-structure-darker) 33%,
-    var(--bm-structure-dark) 33%, var(--bm-structure-dark) 66%,
-    var(--bm-structure) 66%, var(--bm-structure) 100%
+    var(--bm-structure-darker) 0%,  var(--bm-structure-darker) 33%,
+    var(--bm-structure-dark)   33%, var(--bm-structure-dark)   66%,
+    var(--bm-structure)        66%, var(--bm-structure)        100%
   );
   z-index: 1000;
 }
 
-/* --- Frame title with shadow --- */
 .reveal h2 {
   background: linear-gradient(to bottom, var(--bm-structure), var(--bm-structure-dark));
   color: #fff;
@@ -638,10 +699,7 @@ def _theme_css(theme_key: str) -> str:
   margin-bottom: 0.5em;
 }
 
-.reveal h1 {
-  color: #fff;
-  font-size: 1.3em;
-}
+.reveal h1 { color: #fff; font-size: 1.3em; }
 
 .reveal .slides section {
   padding-top: 60px;
@@ -651,12 +709,10 @@ def _theme_css(theme_key: str) -> str:
 .reveal .slide-number {
   background: var(--bm-structure);
   color: #fff;
-  bottom: 4px;
-  right: 8px;
+  bottom: 4px; right: 8px;
   z-index: 1002;
 }
 
-/* Blocks get shadow too */
 .beamer-block {
   box-shadow: 0 2px 4px rgba(0,0,0,0.15);
 }
@@ -672,23 +728,22 @@ def _theme_css(theme_key: str) -> str:
     # AnnArbor
     # =====================================================================
     if theme_key == "annarbor":
-        return """
+        return r"""
 /* AnnArbor theme – outer: infolines, inner: rounded, colors: wolverine */
 :root {
-  --bm-blue: #002255;
-  --bm-maize: #FFCB05;
+  --bm-blue:       #002255;
+  --bm-maize:      #FFCB05;
   --bm-maize-dark: #E0A800;
-  --bm-structure: #002255;
+  --bm-structure:  #002255;
 
-  --bm-block-bg: #002255;
-  --bm-block-body-bg: #D6DCE4;
-  --bm-alert-bg: #A00000;
-  --bm-alert-body-bg: #F2DEDE;
-  --bm-example-bg: #006000;
-  --bm-example-body-bg: #DEF0DE;
+  --bm-block-bg:         #002255;
+  --bm-block-body-bg:    #D6DCE4;
+  --bm-alert-bg:         #A00000;
+  --bm-alert-body-bg:    #F2DEDE;
+  --bm-example-bg:       #006000;
+  --bm-example-body-bg:  #DEF0DE;
 }
 
-/* --- Header bar (infolines) --- */
 .reveal::before {
   content: "";
   position: fixed;
@@ -696,14 +751,13 @@ def _theme_css(theme_key: str) -> str:
   width: 100%; height: 40px;
   background: linear-gradient(
     to right,
-    var(--bm-blue) 0%, var(--bm-blue) 33%,
-    var(--bm-maize-dark) 33%, var(--bm-maize-dark) 66%,
-    var(--bm-maize) 66%, var(--bm-maize) 100%
+    var(--bm-blue)       0%,  var(--bm-blue)       33%,
+    var(--bm-maize-dark) 33%, var(--bm-maize-dark)  66%,
+    var(--bm-maize)      66%, var(--bm-maize)       100%
   );
   z-index: 1000;
 }
 
-/* --- Footer bar (infolines) --- */
 .reveal::after {
   content: "";
   position: fixed;
@@ -711,14 +765,13 @@ def _theme_css(theme_key: str) -> str:
   width: 100%; height: 28px;
   background: linear-gradient(
     to right,
-    var(--bm-blue) 0%, var(--bm-blue) 33%,
-    var(--bm-maize-dark) 33%, var(--bm-maize-dark) 66%,
-    var(--bm-maize) 66%, var(--bm-maize) 100%
+    var(--bm-blue)       0%,  var(--bm-blue)       33%,
+    var(--bm-maize-dark) 33%, var(--bm-maize-dark)  66%,
+    var(--bm-maize)      66%, var(--bm-maize)       100%
   );
   z-index: 1000;
 }
 
-/* --- Frame title --- */
 .reveal h2 {
   background: var(--bm-maize);
   color: #000;
@@ -728,10 +781,7 @@ def _theme_css(theme_key: str) -> str:
   margin-bottom: 0.5em;
 }
 
-.reveal h1 {
-  color: #000;
-  font-size: 1.3em;
-}
+.reveal h1 { color: #000; font-size: 1.3em; }
 
 .reveal .slides section {
   padding-top: 56px;
@@ -741,8 +791,7 @@ def _theme_css(theme_key: str) -> str:
 .reveal .slide-number {
   background: var(--bm-blue);
   color: #fff;
-  bottom: 4px;
-  right: 8px;
+  bottom: 4px; right: 8px;
   z-index: 1002;
 }
 
@@ -762,22 +811,21 @@ def _theme_css(theme_key: str) -> str:
     # Berkeley
     # =====================================================================
     if theme_key == "berkeley":
-        return """
+        return r"""
 /* Berkeley theme – outer: sidebar, inner: rectangles, colors: whale+orchid */
 :root {
-  --bm-structure: #2D2D85;
+  --bm-structure:      #2D2D85;
   --bm-structure-dark: #1A1A5E;
-  --bm-sidebar-bg: #D8D8E8;
+  --bm-sidebar-bg:     #D8D8E8;
 
-  --bm-block-bg: #2D2D85;
-  --bm-block-body-bg: #DDDDE8;
-  --bm-alert-bg: #A00000;
-  --bm-alert-body-bg: #F2DEDE;
-  --bm-example-bg: #006000;
-  --bm-example-body-bg: #DEF0DE;
+  --bm-block-bg:         #2D2D85;
+  --bm-block-body-bg:    #DDDDE8;
+  --bm-alert-bg:         #A00000;
+  --bm-alert-body-bg:    #F2DEDE;
+  --bm-example-bg:       #006000;
+  --bm-example-body-bg:  #DEF0DE;
 }
 
-/* --- Sidebar (left panel) --- */
 .reveal::before {
   content: "";
   position: fixed;
@@ -787,7 +835,6 @@ def _theme_css(theme_key: str) -> str:
   z-index: 1000;
 }
 
-/* --- Top bar spanning right of sidebar --- */
 .reveal::after {
   content: "";
   position: fixed;
@@ -811,16 +858,12 @@ def _theme_css(theme_key: str) -> str:
   margin-bottom: 0.5em;
 }
 
-.reveal h1 {
-  color: var(--bm-structure);
-  font-size: 1.3em;
-}
+.reveal h1 { color: var(--bm-structure); font-size: 1.3em; }
 
 .reveal .slide-number {
   background: var(--bm-structure);
   color: #fff;
-  bottom: 4px;
-  right: 8px;
+  bottom: 4px; right: 8px;
   z-index: 1002;
 }
 
@@ -908,6 +951,7 @@ def _normalize_theme(theme: str) -> str:
 
 
 __all__ = [
+    "apply_beamer_theme",
     "create_beamer_rise_theme",
     "ensure_latin_modern_webfonts",
 ]
