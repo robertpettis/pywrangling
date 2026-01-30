@@ -8,6 +8,8 @@ What this module does
 - Injects CSS directly into the notebook via IPython.display so it works
   immediately — no external rise.css file required.
 - Also writes rise.css for RISE compatibility.
+- Generates an nbconvert custom template so ``jupyter nbconvert --to slides``
+  includes the Beamer CSS automatically.
 - Vendors Latin Modern (Computer-Modern-style) webfonts locally so slides
   look like Beamer.
 - Works on Windows and Linux with no system font installation.
@@ -24,6 +26,11 @@ This will:
   1. Inject all CSS into the notebook immediately (works in both normal
      view and RISE slideshow).
   2. Write rise.css + beamer_assets/ for RISE auto-loading.
+  3. Write beamer_assets/nbconvert_template/ for nbconvert slides export.
+
+To export to HTML slides:
+
+    jupyter nbconvert notebook.ipynb --to slides --template beamer_assets/nbconvert_template --post serve
 
 To skip font downloading (offline):
     apply_beamer_theme("copenhagen", skip_font_download=True)
@@ -154,6 +161,11 @@ def create_beamer_rise_theme(
         theme_css_rel=_rel_or_none(theme_css_path, root),
     )
     out_path.write_text(composed_css, encoding="utf-8")
+
+    # -------------------------------------------------------------------------
+    # Generate nbconvert custom template for --to slides
+    # -------------------------------------------------------------------------
+    _write_nbconvert_template(assets_root, theme_key)
 
     return out_path
 
@@ -874,6 +886,71 @@ def _theme_css(theme_key: str) -> str:
 """
 
     raise ValueError(f"Unknown theme '{theme_key}'.")
+
+
+# =============================================================================
+# nbconvert template generation
+# =============================================================================
+
+def _write_nbconvert_template(assets_root: Path, theme_key: str) -> Path:
+    """
+    Generate a custom nbconvert template that inherits from the stock
+    ``reveal`` template but injects our Beamer CSS.
+
+    The template is written to ``assets_root/nbconvert_template/`` and can
+    be used with::
+
+        jupyter nbconvert nb.ipynb --to slides \\
+            --template beamer_assets/nbconvert_template --post serve
+
+    The template:
+      - Extends the built-in ``reveal/index.html.j2``
+      - Overrides ``html_head_css`` to inject theme + global Beamer CSS
+      - Sets ``reveal_theme`` to ``white`` (minimal base that doesn't clash)
+    """
+    tpl_dir = assets_root / "nbconvert_template"
+    tpl_dir.mkdir(parents=True, exist_ok=True)
+
+    # --- conf.json tells nbconvert this template exists & inherits reveal ---
+    conf = {
+        "base_template": "reveal",
+        "mimetypes": {
+            "text/html": True
+        }
+    }
+    import json
+    (tpl_dir / "conf.json").write_text(
+        json.dumps(conf, indent=2) + "\n", encoding="utf-8"
+    )
+
+    # --- Build the full CSS (theme-specific + global) ---
+    full_css = _theme_css(theme_key) + "\n" + _GLOBAL_BEAMER_CSS
+
+    # Escape Jinja delimiters in the CSS (unlikely but be safe)
+    safe_css = full_css.replace("{%", "{%%").replace("%}", "%%}")
+
+    # --- index.html.j2 extends the stock reveal template ---
+    # We override body_header to inject our CSS AFTER the Reveal.js theme
+    # link (which is at the end of <head>).  This ensures our Beamer styles
+    # win the CSS cascade over white.css / simple.css.
+    # We set reveal_theme to 'white' (the most minimal Reveal.js theme).
+    template_content = (
+        '{%- extends "reveal/index.html.j2" -%}\n'
+        "\n"
+        "{% set reveal_theme = 'white' %}\n"
+        "\n"
+        "{%- block body_header -%}\n"
+        "{{ super() }}\n"
+        "<style type=\"text/css\">\n"
+        "/* === Beamer theme CSS (auto-generated) === */\n"
+        f"{safe_css}\n"
+        "</style>\n"
+        "{%- endblock body_header -%}\n"
+    )
+
+    (tpl_dir / "index.html.j2").write_text(template_content, encoding="utf-8")
+
+    return tpl_dir
 
 
 # =============================================================================
