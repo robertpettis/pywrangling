@@ -44,6 +44,7 @@ import urllib.request
 from pathlib import Path
 from typing import Dict, List, Optional
 from urllib.parse import urljoin, urlparse
+import json
 
 
 # =============================================================================
@@ -51,62 +52,250 @@ from urllib.parse import urljoin, urlparse
 # =============================================================================
 
 def apply_beamer_theme(
-    theme: str = "copenhagen",
-    out_css: str = "rise.css",
-    assets_dir: str = "beamer_assets",
-    font_pack: str = "latin-modern",
+    theme: str = "madrid",
     skip_font_download: bool = False,
+    *,
+    author: str | None = None,
+    date: str | None = None,
+    logo_url: str | None = None,
+    show_slide_number: bool = True,
 ):
     """
-    Apply a Beamer-like theme to the current Jupyter notebook.
+    Apply a Beamer-like theme to Jupyter slides by injecting CSS + a JS "shell".
 
-    Injects CSS directly into the notebook output so that headers, footers,
-    block environments, and all Beamer styling are visible immediately — both
-    in normal notebook view and in RISE slideshow mode.
+    IMPORTANT DESIGN (matches your requirement):
+    - The header/footer content can come FROM EACH SLIDE.
+    - Each slide may include an HTML metadata tag:
 
-    Also writes rise.css for RISE auto-loading on slideshow launch.
+        <div class="beamer-meta"
+             data-author="..."
+             data-date="..."
+             data-logo="...">
+        </div>
 
-    Parameters
-    ----------
-    theme : str
-        One of: copenhagen, madrid, warsaw, annarbor, berkeley.
-    out_css : str
-        Filename for the RISE CSS file (default "rise.css").
-    assets_dir : str
-        Directory for vendored fonts and theme CSS files.
-    font_pack : str
-        Font pack to use (only "latin-modern" supported).
-    skip_font_download : bool
-        If True, skip downloading fonts (use previously downloaded ones).
+      The JS reads the *current slide's* .beamer-meta tag (if present).
+      If absent, it falls back to defaults passed into this function.
 
-    Returns
-    -------
-    IPython.display.HTML (auto-displayed in Jupyter) or Path if not in
-    a notebook environment.
+    Beamer-like layout:
+    - Headline (top bar): optional logo + current slide title
+    - Footline (bottom bar): author | date | slide_number/total
+
+    Notes:
+    - Designed for Reveal.js-based slides (RISE / JupyterLab RISE).
+    - This *intentionally* reads metadata from slide HTML because rendered slides
+      do not reliably preserve notebook-side state.
     """
-    # Also write rise.css for RISE compatibility
-    css_path = create_beamer_rise_theme(
-        theme=theme,
-        out_css=out_css,
-        assets_dir=assets_dir,
-        font_pack=font_pack,
-        skip_font_download=skip_font_download,
-    )
 
-    # Build the full CSS to inject
-    theme_key = _normalize_theme(theme)
-    full_css = _theme_css(theme_key) + "\n" + _GLOBAL_BEAMER_CSS
+    from IPython.display import display, HTML, Javascript
 
-    # Try to inject via IPython.display
-    try:
-        from IPython.display import HTML, display
-        style_html = f"<style>\n{full_css}\n</style>"
-        obj = HTML(style_html)
-        display(obj)
-        return obj
-    except ImportError:
-        # Not in a notebook — just return the path
-        return css_path
+    css_path = create_beamer_rise_theme(theme=theme, skip_font_download=skip_font_download)
+
+    # Read CSS as text and inject directly (works in notebook + RISE without relying on static file serving)
+    css_text = Path(css_path).read_text(encoding="utf-8")
+
+    config = {
+        "author": author or "",
+        "date": date or "",
+        "logo_url": logo_url or "",
+        "show_slide_number": bool(show_slide_number),
+    }
+
+    js = f"""
+(function() {{
+  const CONFIG = {json.dumps(config)};
+
+  function firstHeadingText(section) {{
+    if (!section) return "";
+    var h = section.querySelector("h1, h2, h3");
+    if (!h) return "";
+    return (h.textContent || "").trim();
+  }}
+
+  function readSlideMeta(section) {{
+    // Look for: <div class="beamer-meta" data-author="..." data-date="..." data-logo="..."></div>
+    if (!section) return null;
+    var meta = section.querySelector(".beamer-meta");
+    if (!meta) return null;
+
+    var author = meta.getAttribute("data-author");
+    var date = meta.getAttribute("data-date");
+    var logo = meta.getAttribute("data-logo");
+
+    return {{
+      author: (author !== null ? author : ""),
+      date: (date !== null ? date : ""),
+      logo: (logo !== null ? logo : ""),
+    }};
+  }}
+
+  function ensureShell(revealEl) {{
+    if (!revealEl) return null;
+
+    revealEl.classList.add("beamer-shell");
+
+    // -------------------------------
+    // HEADLINE
+    // -------------------------------
+    var headline = revealEl.querySelector(".beamer-headline");
+    if (!headline) {{
+      headline = document.createElement("div");
+      headline.className = "beamer-headline";
+      headline.innerHTML = `
+        <div class="beamer-head-left"></div>
+        <div class="beamer-head-title"></div>
+      `;
+      revealEl.appendChild(headline);
+    }}
+
+    var headLeft = headline.querySelector(".beamer-head-left");
+    var headTitle = headline.querySelector(".beamer-head-title");
+
+    // -------------------------------
+    // FOOTLINE
+    // -------------------------------
+    var footline = revealEl.querySelector(".beamer-footline");
+    if (!footline) {{
+      footline = document.createElement("div");
+      footline.className = "beamer-footline";
+      footline.innerHTML = `
+        <div class="beamer-foot-left"></div>
+        <div class="beamer-foot-center"></div>
+        <div class="beamer-foot-right"></div>
+      `;
+      revealEl.appendChild(footline);
+    }}
+
+    var footLeft = footline.querySelector(".beamer-foot-left");
+    var footCenter = footline.querySelector(".beamer-foot-center");
+    var footRight = footline.querySelector(".beamer-foot-right");
+
+    return {{
+      headLeft: headLeft,
+      headTitle: headTitle,
+      footLeft: footLeft,
+      footCenter: footCenter,
+      footRight: footRight,
+    }};
+  }}
+
+  function setLogo(headLeftEl, logoUrl) {{
+    if (!headLeftEl) return;
+    if (logoUrl && logoUrl.trim()) {{
+      headLeftEl.innerHTML = `<img src="${{logoUrl}}" style="height:32px; width:auto; display:block;">`;
+    }} else {{
+      headLeftEl.innerHTML = "";
+    }}
+  }}
+
+  function updateShell(revealEl, parts) {{
+    try {{
+      var currentSection = null;
+
+      if (window.Reveal && typeof window.Reveal.getCurrentSlide === "function") {{
+        currentSection = window.Reveal.getCurrentSlide();
+      }} else {{
+        currentSection = revealEl.querySelector("section.present") || null;
+      }}
+
+      // Title ALWAYS from the current slide heading.
+      var title = firstHeadingText(currentSection);
+      parts.headTitle.textContent = title;
+
+      // Author/date/logo from slide meta if present, else defaults.
+      var meta = readSlideMeta(currentSection);
+
+      var author = (meta && meta.author !== "") ? meta.author : CONFIG.author;
+      var date = (meta && meta.date !== "") ? meta.date : CONFIG.date;
+
+      // For logo: slide meta overrides default *including allowing blank to hide logo*
+      // If the slide explicitly includes data-logo="", it hides logo for that slide.
+      var logo = null;
+      if (meta && meta.logo !== null) {{
+        logo = meta.logo; // may be "" (hide)
+      }} else {{
+        logo = CONFIG.logo_url;
+      }}
+
+      parts.footLeft.textContent = author || "";
+      parts.footCenter.textContent = date || "";
+      setLogo(parts.headLeft, logo);
+
+      // Slide numbers
+      if (CONFIG.show_slide_number && window.Reveal && typeof window.Reveal.getIndices === "function") {{
+        var idx = window.Reveal.getIndices();
+        var current = (idx && typeof idx.h === "number") ? (idx.h + 1) : 1;
+
+        var total = 0;
+        if (typeof window.Reveal.getTotalSlides === "function") {{
+          total = window.Reveal.getTotalSlides();
+        }} else {{
+          total = revealEl.querySelectorAll(".slides section").length;
+        }}
+
+        parts.footRight.textContent = current + " / " + total;
+      }} else {{
+        parts.footRight.textContent = "";
+      }}
+
+    }} catch (e) {{
+      console.warn("beamer shell update failed:", e);
+    }}
+  }}
+
+  function bootWhenReady() {{
+    // RISE/JupyterLab RISE sometimes loads Reveal after DOM is ready.
+    // So we retry until `.reveal` and `window.Reveal` exist.
+    var tries = 0;
+    var timer = setInterval(function() {{
+      tries += 1;
+
+      var revealEl = document.querySelector(".reveal");
+      if (!revealEl) return;
+
+      // We can still render shell even if Reveal isn't ready yet,
+      // but slidechanged hooks require Reveal.
+      var parts = ensureShell(revealEl);
+      if (!parts) return;
+
+      // If Reveal exists, hook events & stop retry loop.
+      if (window.Reveal) {{
+        updateShell(revealEl, parts);
+
+        if (typeof window.Reveal.on === "function") {{
+          window.Reveal.on("slidechanged", function() {{
+            updateShell(revealEl, parts);
+          }});
+          window.Reveal.on("ready", function() {{
+            updateShell(revealEl, parts);
+          }});
+        }}
+
+        clearInterval(timer);
+        return;
+      }}
+
+      // Even before Reveal is ready, try to update from "present" section.
+      updateShell(revealEl, parts);
+
+      // Fail-safe stop (don't loop forever)
+      if (tries > 80) {{
+        clearInterval(timer);
+      }}
+    }}, 150);
+  }}
+
+  if (document.readyState === "loading") {{
+    document.addEventListener("DOMContentLoaded", bootWhenReady);
+  }} else {{
+    bootWhenReady();
+  }}
+}})();
+"""
+
+    display(HTML(f"<style>{css_text}</style>"))
+    display(Javascript(js))
+
+
 
 
 def create_beamer_rise_theme(
@@ -476,6 +665,62 @@ body {
   align-items: center;
   padding: 0 16px;
 }
+
+/* ===== Beamer-ish bullet markers (shiny dot) =====
+   Beamer often uses a colored bullet with a subtle highlight.
+   We fake that with a gradient overlay + tiny drop shadow.
+*/
+.reveal {
+  --beamer-bullet: #0033A0;
+}
+
+.reveal ul,
+.rendered_html ul,
+.jp-RenderedHTMLCommon ul {
+  list-style: none;
+  padding-left: 1.2em;
+}
+
+.reveal ul li,
+.rendered_html ul li,
+.jp-RenderedHTMLCommon ul li {
+  position: relative;
+}
+
+.reveal ul li::before,
+.rendered_html ul li::before,
+.jp-RenderedHTMLCommon ul li::before {
+  content: "";
+  position: absolute;
+  left: -0.85em;
+  top: 0.62em;               /* tuned for ~28–32px base text */
+  width: 0.42em;
+  height: 0.42em;
+  border-radius: 999px;
+
+  /* base color + highlight/shadow */
+  background:
+    radial-gradient(circle at 30% 30%, rgba(255,255,255,0.95), rgba(255,255,255,0.12) 35%, rgba(255,255,255,0.00) 60%),
+    radial-gradient(circle at 70% 75%, rgba(0,0,0,0.22), rgba(0,0,0,0.00) 60%),
+    var(--beamer-bullet);
+
+  box-shadow: 0 0.06em 0.10em rgba(0,0,0,0.35);
+}
+
+
+/* If we move titles into the headline, hide the first heading inside each slide */
+.reveal.beamer-shell section h1:first-child,
+.reveal.beamer-shell section h2:first-child,
+.reveal.beamer-shell section h3:first-child,
+.reveal.beamer-shell section .rendered_html > h1:first-child,
+.reveal.beamer-shell section .rendered_html > h2:first-child,
+.reveal.beamer-shell section .rendered_html > h3:first-child,
+.reveal.beamer-shell section .jp-RenderedHTMLCommon > h1:first-child,
+.reveal.beamer-shell section .jp-RenderedHTMLCommon > h2:first-child,
+.reveal.beamer-shell section .jp-RenderedHTMLCommon > h3:first-child {
+  display: none;
+}
+
 """
 
 
@@ -918,7 +1163,6 @@ def _write_nbconvert_template(assets_root: Path, theme_key: str) -> Path:
             "text/html": True
         }
     }
-    import json
     (tpl_dir / "conf.json").write_text(
         json.dumps(conf, indent=2) + "\n", encoding="utf-8"
     )
