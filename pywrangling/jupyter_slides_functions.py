@@ -249,21 +249,20 @@ def apply_beamer_theme(
       parts.footCenter.textContent = date || "";
       setLogo(parts.headLeft, logo);
 
-      // Custom slide number: h.v/totalHorizontal (or h/totalH if no sub-slide)
+      // Custom slide number: h.v/totalHorizontal (always show v, 1-based)
       if (CONFIG.show_slide_number && parts.slideNumber && window.Reveal) {{
         var idx = (typeof window.Reveal.getIndices === "function")
           ? window.Reveal.getIndices()
           : null;
         if (idx) {{
-          var h = idx.h + 1;  // 1-based
-          var v = idx.v;      // 0-based (0 = no sub-slide)
+          var h = idx.h + 1;      // 1-based
+          var v = idx.v + 1;      // 1-based
           // Count top-level <section> children = horizontal slide count
           var slidesEl = revealEl.querySelector(".slides");
           var totalH = slidesEl
             ? slidesEl.querySelectorAll(":scope > section").length
             : "?";
-          var numStr = (v > 0) ? (h + "." + v + "/" + totalH) : (h + "/" + totalH);
-          parts.slideNumber.textContent = numStr;
+          parts.slideNumber.textContent = h + "." + v + "/" + totalH;
         }}
       }}
 
@@ -786,6 +785,11 @@ body {
    since the title is already shown in the header bar. */
 .beamer-shell .slides section h2 {
   display: none;
+}
+
+/* Hide Reveal.js's built-in slide number — we render our own. */
+.beamer-shell .slide-number {
+  display: none !important;
 }
 
 """
