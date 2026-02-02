@@ -133,6 +133,26 @@ def apply_beamer_theme(
     }});
   }})();
 
+  // ── Hide RISE/Reveal UI controls by default; comma key toggles ──
+  // Adds .beamer-hide-controls to <body> immediately so controls start
+  // hidden.  Pressing "," (Comma) toggles the class on/off.
+  (function() {{
+    document.body.classList.add("beamer-hide-controls");
+
+    document.addEventListener("keydown", function(e) {{
+      // Comma key (key === "," or code === "Comma")
+      if (e.key === "," || e.code === "Comma") {{
+        // Don't toggle if user is typing in an input/textarea
+        var tag = (e.target.tagName || "").toLowerCase();
+        if (tag === "input" || tag === "textarea" || e.target.isContentEditable) return;
+
+        document.body.classList.toggle("beamer-hide-controls");
+        e.preventDefault();
+        e.stopPropagation();
+      }}
+    }}, true);
+  }})();
+
   function firstHeadingText(section) {{
     if (!section) return "";
     // In nbconvert slides, headings have id attributes with anchor links.
@@ -825,6 +845,35 @@ body {
 /* Hide Reveal.js's built-in slide number — we render our own. */
 .beamer-shell .slide-number {
   display: none !important;
+}
+
+/* ===== Hide RISE / Reveal.js UI controls by default ===== */
+/* Toggled visible with the comma key via JS.                */
+/* Targets: RISE toolbar (exit X, help), chalkboard icons,   */
+/* Reveal.js navigation arrows, and custom-controls.         */
+body.beamer-hide-controls .reveal .controls,
+body.beamer-hide-controls .reveal .slide-menu-button,
+body.beamer-hide-controls #exit_b,
+body.beamer-hide-controls #help_b,
+body.beamer-hide-controls .chalkboard-button,
+body.beamer-hide-controls .reveal .customcontrols,
+body.beamer-hide-controls div.btn-group.rise-toolbar {
+  opacity: 0 !important;
+  pointer-events: none !important;
+  transition: opacity 0.25s ease;
+}
+
+/* When controls are shown (class removed), fade them in */
+body:not(.beamer-hide-controls) .reveal .controls,
+body:not(.beamer-hide-controls) .reveal .slide-menu-button,
+body:not(.beamer-hide-controls) #exit_b,
+body:not(.beamer-hide-controls) #help_b,
+body:not(.beamer-hide-controls) .chalkboard-button,
+body:not(.beamer-hide-controls) .reveal .customcontrols,
+body:not(.beamer-hide-controls) div.btn-group.rise-toolbar {
+  opacity: 1 !important;
+  pointer-events: auto !important;
+  transition: opacity 0.25s ease;
 }
 
 """
