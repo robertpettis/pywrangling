@@ -183,11 +183,18 @@ def apply_beamer_theme(
     var footCenter = footline.querySelector(".beamer-foot-center");
     var footRight = footline.querySelector(".beamer-foot-right");
 
-    // Move Reveal.js's .slide-number element into our footer bar so it
-    // inherits the footer layout instead of being positioned independently.
-    var slideNum = revealEl.querySelector(".slide-number");
-    if (slideNum && slideNum.parentElement !== footRight) {{
-      footRight.appendChild(slideNum);
+    // Hide Reveal.js's built-in slide number — we render our own.
+    var builtinNum = revealEl.querySelector(".slide-number");
+    if (builtinNum) {{
+      builtinNum.style.display = "none";
+    }}
+
+    // Create our own slide-number span inside the footer.
+    var customNum = footRight.querySelector(".beamer-slide-number");
+    if (!customNum) {{
+      customNum = document.createElement("span");
+      customNum.className = "beamer-slide-number";
+      footRight.appendChild(customNum);
     }}
 
     return {{
@@ -196,6 +203,7 @@ def apply_beamer_theme(
       footLeft: footLeft,
       footCenter: footCenter,
       footRight: footRight,
+      slideNumber: customNum,
     }};
   }}
 
@@ -241,6 +249,24 @@ def apply_beamer_theme(
       parts.footCenter.textContent = date || "";
       setLogo(parts.headLeft, logo);
 
+      // Custom slide number: h.v/totalHorizontal (or h/totalH if no sub-slide)
+      if (CONFIG.show_slide_number && parts.slideNumber && window.Reveal) {{
+        var idx = (typeof window.Reveal.getIndices === "function")
+          ? window.Reveal.getIndices()
+          : null;
+        if (idx) {{
+          var h = idx.h + 1;  // 1-based
+          var v = idx.v;      // 0-based (0 = no sub-slide)
+          // Count top-level <section> children = horizontal slide count
+          var slidesEl = revealEl.querySelector(".slides");
+          var totalH = slidesEl
+            ? slidesEl.querySelectorAll(":scope > section").length
+            : "?";
+          var numStr = (v > 0) ? (h + "." + v + "/" + totalH) : (h + "/" + totalH);
+          parts.slideNumber.textContent = numStr;
+        }}
+      }}
+
     }} catch (e) {{
       console.warn("beamer shell update failed:", e);
     }}
@@ -263,10 +289,11 @@ def apply_beamer_theme(
 
       // If Reveal exists, hook events & stop retry loop.
       if (window.Reveal) {{
-        // Configure slide numbers to show "current / total"
+        // Enable slide numbers so Reveal.js creates the .slide-number element;
+        // we overwrite its content with our custom format in updateShell().
         if (typeof window.Reveal.configure === "function") {{
           window.Reveal.configure({{
-            slideNumber: "h.v/t"
+            slideNumber: true
           }});
         }}
 
@@ -705,17 +732,12 @@ body {
   text-overflow: ellipsis;
 }
 
-/* ===== Reveal.js slide number — lives inside .beamer-foot-right ===== */
-.reveal .slide-number {
+/* ===== Custom slide number inside .beamer-foot-right ===== */
+.beamer-slide-number {
   font-family: "Latin Modern Roman", "Computer Modern", serif;
   font-size: 11px;
   color: #fff;
-  background: transparent;
-  /* Once moved into the footer bar by JS, use static positioning */
-  position: static;
-  padding: 0;
   line-height: 28px;
-  z-index: 1002;
 }
 
 /* ===== Beamer-ish bullet markers (shiny dot) =====
