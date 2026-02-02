@@ -113,14 +113,8 @@ def apply_beamer_theme(
 
     // If no heading in the current (sub-)section, check the parent section
     // (Reveal.js nests vertical slides inside a parent <section>).
-    // IMPORTANT: only look at *direct* children of the parent, not headings
-    // nested inside sibling sub-slides (which would show the wrong title).
     if (!h && section.parentElement && section.parentElement.tagName === "SECTION") {{
-      var parent = section.parentElement;
-      var candidates = parent.querySelectorAll(":scope > h2, :scope > h3, :scope > h1");
-      if (candidates.length > 0) {{
-        h = candidates[0];
-      }}
+      h = section.parentElement.querySelector("h2, h3, h1");
     }}
 
     if (!h) return "";
@@ -271,11 +265,18 @@ def apply_beamer_theme(
 
         updateShell(revealEl, parts);
 
-        if (typeof window.Reveal.on === "function") {{
-          window.Reveal.on("slidechanged", function() {{
+        // Reveal.js 4.x uses .on(), 3.x (RISE) uses .addEventListener()
+        var bindEvent = (typeof window.Reveal.on === "function")
+          ? function(evt, fn) {{ window.Reveal.on(evt, fn); }}
+          : (typeof window.Reveal.addEventListener === "function")
+            ? function(evt, fn) {{ window.Reveal.addEventListener(evt, fn); }}
+            : null;
+
+        if (bindEvent) {{
+          bindEvent("slidechanged", function() {{
             updateShell(revealEl, parts);
           }});
-          window.Reveal.on("ready", function() {{
+          bindEvent("ready", function() {{
             updateShell(revealEl, parts);
           }});
         }}
