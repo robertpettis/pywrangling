@@ -851,7 +851,6 @@ body {
 /* Toggled visible with the comma key via JS.                */
 /* Targets: RISE toolbar (exit X, help), chalkboard icons,   */
 /* Reveal.js navigation arrows, and custom-controls.         */
-body.beamer-hide-controls .reveal .controls,
 body.beamer-hide-controls .reveal .slide-menu-button,
 body.beamer-hide-controls #exit_b,
 body.beamer-hide-controls #help_b,
@@ -864,7 +863,6 @@ body.beamer-hide-controls div.btn-group.rise-toolbar {
 }
 
 /* When controls are shown (class removed), fade them in */
-body:not(.beamer-hide-controls) .reveal .controls,
 body:not(.beamer-hide-controls) .reveal .slide-menu-button,
 body:not(.beamer-hide-controls) #exit_b,
 body:not(.beamer-hide-controls) #help_b,
