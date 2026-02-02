@@ -706,6 +706,7 @@ body {
   background: transparent;
   right: 12px;
   bottom: 0;
+  padding: 0 0.35em;  /* zero vertical padding so line-height controls centering */
   height: 28px;
   line-height: 28px;  /* vertically centre in the 28px footer bar */
   z-index: 1002;
@@ -754,9 +755,11 @@ body {
 }
 
 
-/* Headings are shown both in the header bar AND in the slide body,
-   matching how Beamer displays the frame title in the coloured bar
-   while also allowing in-slide headings for structure. */
+/* Hide the in-slide h2 when the JS header bar is active (beamer-shell),
+   since the title is already shown in the header bar. */
+.beamer-shell .slides section h2 {
+  display: none;
+}
 
 """
 
