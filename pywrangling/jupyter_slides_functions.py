@@ -106,9 +106,16 @@ def apply_beamer_theme(
 
   function firstHeadingText(section) {{
     if (!section) return "";
-    var h = section.querySelector("h1, h2, h3");
+    // In nbconvert slides, headings have id attributes with anchor links.
+    // In RISE, they're inside .rendered_html or .jp-RenderedHTMLCommon.
+    // querySelector searches all descendants, so this handles both cases.
+    var h = section.querySelector("h2, h3, h1");
     if (!h) return "";
-    return (h.textContent || "").trim();
+    // Strip the pilcrow/anchor-link text that nbconvert appends
+    var clone = h.cloneNode(true);
+    var anchors = clone.querySelectorAll(".anchor-link");
+    anchors.forEach(function(a) {{ a.remove(); }});
+    return (clone.textContent || "").trim();
   }}
 
   function readSlideMeta(section) {{
@@ -220,23 +227,6 @@ def apply_beamer_theme(
       parts.footCenter.textContent = date || "";
       setLogo(parts.headLeft, logo);
 
-      // Slide numbers
-      if (CONFIG.show_slide_number && window.Reveal && typeof window.Reveal.getIndices === "function") {{
-        var idx = window.Reveal.getIndices();
-        var current = (idx && typeof idx.h === "number") ? (idx.h + 1) : 1;
-
-        var total = 0;
-        if (typeof window.Reveal.getTotalSlides === "function") {{
-          total = window.Reveal.getTotalSlides();
-        }} else {{
-          total = revealEl.querySelectorAll(".slides section").length;
-        }}
-
-        parts.footRight.textContent = current + " / " + total;
-      }} else {{
-        parts.footRight.textContent = "";
-      }}
-
     }} catch (e) {{
       console.warn("beamer shell update failed:", e);
     }}
@@ -259,6 +249,13 @@ def apply_beamer_theme(
 
       // If Reveal exists, hook events & stop retry loop.
       if (window.Reveal) {{
+        // Configure slide numbers to show "current / total"
+        if (typeof window.Reveal.configure === "function") {{
+          window.Reveal.configure({{
+            slideNumber: "c/t"
+          }});
+        }}
+
         updateShell(revealEl, parts);
 
         if (typeof window.Reveal.on === "function") {{
@@ -633,14 +630,27 @@ body {
   color: #fff;
 }
 
-.beamer-footline .foot-left,
-.beamer-footline .foot-center,
-.beamer-footline .foot-right {
+.beamer-footline .beamer-foot-left,
+.beamer-footline .beamer-foot-center,
+.beamer-footline .beamer-foot-right {
+  flex: 1;
   padding: 0 12px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   line-height: 28px;
+}
+
+.beamer-footline .beamer-foot-left {
+  text-align: left;
+}
+
+.beamer-footline .beamer-foot-center {
+  text-align: center;
+}
+
+.beamer-footline .beamer-foot-right {
+  text-align: right;
 }
 
 /* ===== Beamer header bar (HTML element version) ===== */
@@ -649,21 +659,40 @@ body {
   top: 0;
   left: 0;
   width: 100%;
-  height: 36px;
+  height: 40px;
   z-index: 1001;
   display: flex;
   align-items: center;
-  font-size: 12px;
+  font-size: 18px;
+  font-weight: bold;
   font-family: "Latin Modern Roman", "Computer Modern", serif;
   color: #fff;
 }
 
-.beamer-headline .head-left,
-.beamer-headline .head-right {
+.beamer-headline .beamer-head-left {
   height: 100%;
   display: flex;
   align-items: center;
+  padding: 0 12px;
+}
+
+.beamer-headline .beamer-head-title {
+  flex: 1;
   padding: 0 16px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ===== Reveal.js slide number override ===== */
+.reveal .slide-number {
+  font-family: "Latin Modern Roman", "Computer Modern", serif;
+  font-size: 11px;
+  color: #fff;
+  background: transparent;
+  right: 12px;
+  bottom: 4px;
+  z-index: 1002;
 }
 
 /* ===== Beamer-ish bullet markers (shiny dot) =====
@@ -1177,11 +1206,13 @@ def _write_nbconvert_template(assets_root: Path, theme_key: str) -> Path:
     # We override body_header to inject our CSS AFTER the Reveal.js theme
     # link (which is at the end of <head>).  This ensures our Beamer styles
     # win the CSS cascade over white.css / simple.css.
-    # We set reveal_theme to 'white' (the most minimal Reveal.js theme).
+    # We set reveal_theme to 'white' (the most minimal Reveal.js theme)
+    # and reveal_number to 'c/t' for "current / total" slide numbers.
     template_content = (
         '{%- extends "reveal/index.html.j2" -%}\n'
         "\n"
         "{% set reveal_theme = 'white' %}\n"
+        "{% set reveal_number = 'c/t' %}\n"
         "\n"
         "{%- block body_header -%}\n"
         "{{ super() }}\n"
