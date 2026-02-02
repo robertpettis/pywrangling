@@ -110,6 +110,13 @@ def apply_beamer_theme(
     // In RISE, they're inside .rendered_html or .jp-RenderedHTMLCommon.
     // querySelector searches all descendants, so this handles both cases.
     var h = section.querySelector("h2, h3, h1");
+
+    // If no heading in the current (sub-)section, check the parent section
+    // (Reveal.js nests vertical slides inside a parent <section>).
+    if (!h && section.parentElement && section.parentElement.tagName === "SECTION") {{
+      h = section.parentElement.querySelector("h2, h3, h1");
+    }}
+
     if (!h) return "";
     // Strip the pilcrow/anchor-link text that nbconvert appends
     var clone = h.cloneNode(true);
@@ -252,7 +259,7 @@ def apply_beamer_theme(
         // Configure slide numbers to show "current / total"
         if (typeof window.Reveal.configure === "function") {{
           window.Reveal.configure({{
-            slideNumber: "c/t"
+            slideNumber: "h.v/t"
           }});
         }}
 
@@ -684,15 +691,16 @@ body {
   text-overflow: ellipsis;
 }
 
-/* ===== Reveal.js slide number override ===== */
+/* ===== Reveal.js slide number — positioned inside the footer bar ===== */
 .reveal .slide-number {
   font-family: "Latin Modern Roman", "Computer Modern", serif;
   font-size: 11px;
   color: #fff;
   background: transparent;
   right: 12px;
-  bottom: 4px;
+  bottom: 4px;       /* vertically centre in the 28px footer bar */
   z-index: 1002;
+  position: fixed;
 }
 
 /* ===== Beamer-ish bullet markers (shiny dot) =====
@@ -737,18 +745,9 @@ body {
 }
 
 
-/* If we move titles into the headline, hide the first heading inside each slide */
-.reveal.beamer-shell section h1:first-child,
-.reveal.beamer-shell section h2:first-child,
-.reveal.beamer-shell section h3:first-child,
-.reveal.beamer-shell section .rendered_html > h1:first-child,
-.reveal.beamer-shell section .rendered_html > h2:first-child,
-.reveal.beamer-shell section .rendered_html > h3:first-child,
-.reveal.beamer-shell section .jp-RenderedHTMLCommon > h1:first-child,
-.reveal.beamer-shell section .jp-RenderedHTMLCommon > h2:first-child,
-.reveal.beamer-shell section .jp-RenderedHTMLCommon > h3:first-child {
-  display: none;
-}
+/* Headings are shown both in the header bar AND in the slide body,
+   matching how Beamer displays the frame title in the coloured bar
+   while also allowing in-slide headings for structure. */
 
 """
 
@@ -1212,7 +1211,7 @@ def _write_nbconvert_template(assets_root: Path, theme_key: str) -> Path:
         '{%- extends "reveal/index.html.j2" -%}\n'
         "\n"
         "{% set reveal_theme = 'white' %}\n"
-        "{% set reveal_number = 'c/t' %}\n"
+        "{% set reveal_number = 'h.v/t' %}\n"
         "\n"
         "{%- block body_header -%}\n"
         "{{ super() }}\n"
