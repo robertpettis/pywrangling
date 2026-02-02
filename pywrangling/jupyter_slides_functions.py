@@ -113,8 +113,14 @@ def apply_beamer_theme(
 
     // If no heading in the current (sub-)section, check the parent section
     // (Reveal.js nests vertical slides inside a parent <section>).
+    // IMPORTANT: only look at *direct* children of the parent, not headings
+    // nested inside sibling sub-slides (which would show the wrong title).
     if (!h && section.parentElement && section.parentElement.tagName === "SECTION") {{
-      h = section.parentElement.querySelector("h2, h3, h1");
+      var parent = section.parentElement;
+      var candidates = parent.querySelectorAll(":scope > h2, :scope > h3, :scope > h1");
+      if (candidates.length > 0) {{
+        h = candidates[0];
+      }}
     }}
 
     if (!h) return "";
@@ -698,7 +704,9 @@ body {
   color: #fff;
   background: transparent;
   right: 12px;
-  bottom: 4px;       /* vertically centre in the 28px footer bar */
+  bottom: 0;
+  height: 28px;
+  line-height: 28px;  /* vertically centre in the 28px footer bar */
   z-index: 1002;
   position: fixed;
 }
@@ -834,7 +842,7 @@ def _theme_css(theme_key: str) -> str:
 .reveal .slide-number {
   background: var(--bm-structure);
   color: #fff;
-  bottom: 4px;
+  bottom: 0;
   right: 8px;
   z-index: 1002;
 }
@@ -917,7 +925,7 @@ def _theme_css(theme_key: str) -> str:
 .reveal .slide-number {
   background: var(--bm-structure);
   color: #fff;
-  bottom: 4px; right: 8px;
+  bottom: 0; right: 8px;
   z-index: 1002;
 }
 
@@ -994,7 +1002,7 @@ def _theme_css(theme_key: str) -> str:
 .reveal .slide-number {
   background: var(--bm-structure);
   color: #fff;
-  bottom: 4px; right: 8px;
+  bottom: 0; right: 8px;
   z-index: 1002;
 }
 
@@ -1076,7 +1084,7 @@ def _theme_css(theme_key: str) -> str:
 .reveal .slide-number {
   background: var(--bm-blue);
   color: #fff;
-  bottom: 4px; right: 8px;
+  bottom: 0; right: 8px;
   z-index: 1002;
 }
 
@@ -1148,7 +1156,7 @@ def _theme_css(theme_key: str) -> str:
 .reveal .slide-number {
   background: var(--bm-structure);
   color: #fff;
-  bottom: 4px; right: 8px;
+  bottom: 0; right: 8px;
   z-index: 1002;
 }
 
