@@ -104,6 +104,35 @@ def apply_beamer_theme(
 (function() {{
   const CONFIG = {json.dumps(config)};
 
+  // ── Pen-tablet ghost-mouse suppressor ──
+  // Tablets (Huion, Wacom, etc.) often emit BOTH pointer/pen events AND
+  // synthesised mouse events for the same stroke.  The mouse coordinates
+  // are slightly offset, causing the cursor to flicker between two
+  // positions.  We suppress mouse events that arrive shortly after a
+  // pen/stylus pointer event.
+  (function() {{
+    var lastPenTime = 0;
+    var GRACE_MS = 400;  // ignore mouse events within this window
+
+    // Track when a pen/stylus pointer event fires
+    document.addEventListener("pointerdown", function(e) {{
+      if (e.pointerType === "pen") lastPenTime = Date.now();
+    }}, true);
+    document.addEventListener("pointermove", function(e) {{
+      if (e.pointerType === "pen") lastPenTime = Date.now();
+    }}, true);
+
+    // Block mouse events that follow a pen event (these are the ghosts)
+    ["mousedown", "mousemove", "mouseup"].forEach(function(evtName) {{
+      document.addEventListener(evtName, function(e) {{
+        if (Date.now() - lastPenTime < GRACE_MS) {{
+          e.stopPropagation();
+          e.preventDefault();
+        }}
+      }}, true);  // capture phase — run before the chalkboard handler
+    }});
+  }})();
+
   function firstHeadingText(section) {{
     if (!section) return "";
     // In nbconvert slides, headings have id attributes with anchor links.
