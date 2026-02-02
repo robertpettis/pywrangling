@@ -292,7 +292,11 @@ def apply_beamer_theme(
         // we overwrite its content with our custom format in updateShell().
         if (typeof window.Reveal.configure === "function") {{
           window.Reveal.configure({{
-            slideNumber: true
+            slideNumber: true,
+            // Disable touch/swipe navigation — it conflicts with the
+            // chalkboard plugin's pen drawing, causing strokes to jerk
+            // sideways as Reveal interprets them as slide-change swipes.
+            touch: false
           }});
         }}
 
