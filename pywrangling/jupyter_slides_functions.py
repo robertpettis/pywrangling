@@ -679,6 +679,7 @@ body {
   font-size: 11px;
   font-family: "Latin Modern Roman", "Computer Modern", serif;
   color: #fff;
+  pointer-events: none;  /* don't intercept chalkboard drawing */
 }
 
 .beamer-footline .beamer-foot-left,
@@ -718,6 +719,7 @@ body {
   font-weight: bold;
   font-family: "Latin Modern Roman", "Computer Modern", serif;
   color: #fff;
+  pointer-events: none;  /* don't intercept chalkboard drawing */
 }
 
 .beamer-headline .beamer-head-left {
