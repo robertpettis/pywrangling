@@ -183,6 +183,13 @@ def apply_beamer_theme(
     var footCenter = footline.querySelector(".beamer-foot-center");
     var footRight = footline.querySelector(".beamer-foot-right");
 
+    // Move Reveal.js's .slide-number element into our footer bar so it
+    // inherits the footer layout instead of being positioned independently.
+    var slideNum = revealEl.querySelector(".slide-number");
+    if (slideNum && slideNum.parentElement !== footRight) {{
+      footRight.appendChild(slideNum);
+    }}
+
     return {{
       headLeft: headLeft,
       headTitle: headTitle,
@@ -698,19 +705,17 @@ body {
   text-overflow: ellipsis;
 }
 
-/* ===== Reveal.js slide number — positioned inside the footer bar ===== */
+/* ===== Reveal.js slide number — lives inside .beamer-foot-right ===== */
 .reveal .slide-number {
   font-family: "Latin Modern Roman", "Computer Modern", serif;
   font-size: 11px;
   color: #fff;
   background: transparent;
-  right: 12px;
-  bottom: 0;
-  padding: 0 0.35em;  /* zero vertical padding so line-height controls centering */
-  height: 28px;
-  line-height: 28px;  /* vertically centre in the 28px footer bar */
+  /* Once moved into the footer bar by JS, use static positioning */
+  position: static;
+  padding: 0;
+  line-height: 28px;
   z-index: 1002;
-  position: fixed;
 }
 
 /* ===== Beamer-ish bullet markers (shiny dot) =====
