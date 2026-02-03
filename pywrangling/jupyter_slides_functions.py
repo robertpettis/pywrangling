@@ -168,7 +168,10 @@ def apply_beamer_theme(
     var clone = h.cloneNode(true);
     var anchors = clone.querySelectorAll(".anchor-link");
     anchors.forEach(function(a) {{ a.remove(); }});
-    return (clone.textContent || "").trim();
+    var text = (clone.textContent || "").trim();
+    // Strip {{zoom=X}} override syntax so it doesn't appear in the header bar
+    text = text.replace(/\{{zoom\s*=\s*[\d.]+\}}/g, "").trim();
+    return text;
   }}
 
   function readSlideMeta(section) {{
@@ -186,6 +189,89 @@ def apply_beamer_theme(
       date: (date !== null ? date : ""),
       logo: (logo !== null ? logo : ""),
     }};
+  }}
+
+  // ── Per-slide auto-zoom ──
+  // Measures each slide's content against available space and applies
+  // CSS zoom to shrink overflowing slides.  Headings may include a
+  // {{zoom=X}} override that is stripped from display.
+
+  function parseZoomOverride(section) {{
+    // Returns the explicit zoom value (number) or null.
+    // Strips {{zoom=X}} from heading text nodes on first parse.
+    if (!section) return null;
+    if (section.getAttribute("data-beamer-zoom-parsed")) {{
+      var stored = section.getAttribute("data-beamer-zoom-override");
+      return stored ? parseFloat(stored) : null;
+    }}
+    section.setAttribute("data-beamer-zoom-parsed", "1");
+
+    var headings = section.querySelectorAll("h1, h2, h3");
+    for (var i = 0; i < headings.length; i++) {{
+      var h = headings[i];
+      var text = h.textContent || "";
+      var match = text.match(/\{{zoom\s*=\s*([\d.]+)\}}/);
+      if (match) {{
+        var zoomVal = parseFloat(match[1]);
+        // Strip {{zoom=X}} from text nodes only (preserve DOM structure).
+        // Walk all child text nodes and remove the pattern.
+        var walker = document.createTreeWalker(h, NodeFilter.SHOW_TEXT, null, false);
+        var node;
+        while (node = walker.nextNode()) {{
+          if (node.nodeValue && node.nodeValue.match(/\{{zoom\s*=\s*[\d.]+\}}/)) {{
+            node.nodeValue = node.nodeValue.replace(/\{{zoom\s*=\s*[\d.]+\}}/g, "");
+          }}
+        }}
+        if (!isNaN(zoomVal)) {{
+          section.setAttribute("data-beamer-zoom-override", String(zoomVal));
+          return zoomVal;
+        }}
+      }}
+    }}
+    return null;
+  }}
+
+  function computeAutoZoom(section) {{
+    // Measure the content's natural height vs available space.
+    // Returns a zoom factor in [0.4, 1.0] — scale down only.
+    if (!section) return 1;
+
+    // Temporarily reset zoom to measure natural dimensions
+    var prevZoom = section.style.zoom || "";
+    section.style.zoom = "1";
+    void section.offsetHeight;  // force reflow
+
+    var contentHeight = section.scrollHeight;
+    var containerHeight = section.clientHeight;
+
+    // Restore previous zoom
+    section.style.zoom = prevZoom;
+
+    if (contentHeight <= 0 || containerHeight <= 0) return 1;
+    if (contentHeight <= containerHeight) return 1;  // already fits
+
+    var zoom = containerHeight / contentHeight;
+    zoom = Math.max(0.4, Math.min(1.0, zoom));
+    return Math.round(zoom * 100) / 100;
+  }}
+
+  function applySlideZoom(section) {{
+    if (!section) return;
+
+    // Check for explicit {{zoom=X}} override in the heading
+    var override = parseZoomOverride(section);
+
+    var zoom;
+    if (override !== null) {{
+      // Explicit override — can be > 1 if user wants enlargement
+      zoom = override;
+    }} else {{
+      // Auto-compute — scale down only
+      zoom = computeAutoZoom(section);
+    }}
+
+    section.style.zoom = String(zoom);
+    section.setAttribute("data-beamer-zoom-applied", String(zoom));
   }}
 
   function ensureShell(revealEl) {{
@@ -354,6 +440,12 @@ def apply_beamer_theme(
 
         updateShell(revealEl, parts);
 
+        // Apply zoom to the initial slide (after updateShell so title/counter are set)
+        var initialSlide = (typeof window.Reveal.getCurrentSlide === "function")
+          ? window.Reveal.getCurrentSlide()
+          : revealEl.querySelector("section.present");
+        if (initialSlide) applySlideZoom(initialSlide);
+
         // Reveal.js 4.x uses .on(), 3.x (RISE) uses .addEventListener()
         var bindEvent = (typeof window.Reveal.on === "function")
           ? function(evt, fn) {{ window.Reveal.on(evt, fn); }}
@@ -364,9 +456,15 @@ def apply_beamer_theme(
         if (bindEvent) {{
           bindEvent("slidechanged", function() {{
             updateShell(revealEl, parts);
+            var slide = window.Reveal.getCurrentSlide();
+            applySlideZoom(slide);
+            // Re-check after 200ms for late-rendering content (MathJax, images)
+            setTimeout(function() {{ applySlideZoom(slide); }}, 200);
           }});
           bindEvent("ready", function() {{
             updateShell(revealEl, parts);
+            var slide = window.Reveal.getCurrentSlide();
+            applySlideZoom(slide);
           }});
         }}
 
@@ -875,6 +973,13 @@ body:not(.beamer-hide-controls) div.btn-group.rise-toolbar {
   opacity: 1 !important;
   pointer-events: auto !important;
   transition: opacity 0.25s ease;
+}
+
+/* ===== Per-slide auto-zoom support ===== */
+/* Ensure zoomed sections align top-left and don't clip */
+.reveal .slides section {
+  transform-origin: top left;
+  overflow: visible;
 }
 
 """
