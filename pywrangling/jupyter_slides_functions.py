@@ -136,21 +136,21 @@ def apply_beamer_theme(
   // ── Hide RISE/Reveal UI controls by default; comma key toggles ──
   // Adds .beamer-hide-controls to <body> immediately so controls start
   // hidden.  Pressing "," (Comma) toggles the class on/off.
+  // Uses keyup on window to avoid being swallowed by Reveal.js keyboard
+  // handling, which intercepts keydown events.
   (function() {{
     document.body.classList.add("beamer-hide-controls");
 
-    document.addEventListener("keydown", function(e) {{
-      // Comma key (key === "," or code === "Comma")
-      if (e.key === "," || e.code === "Comma") {{
+    window.addEventListener("keyup", function(e) {{
+      // Comma key: e.key === "," or e.keyCode === 188
+      if (e.key === "," || e.keyCode === 188) {{
         // Don't toggle if user is typing in an input/textarea
         var tag = (e.target.tagName || "").toLowerCase();
         if (tag === "input" || tag === "textarea" || e.target.isContentEditable) return;
 
         document.body.classList.toggle("beamer-hide-controls");
-        e.preventDefault();
-        e.stopPropagation();
       }}
-    }}, true);
+    }});
   }})();
 
   function firstHeadingText(section) {{
