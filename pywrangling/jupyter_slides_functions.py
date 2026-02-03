@@ -4,7 +4,7 @@ Beamer-style themes for Jupyter / RISE (Reveal.js) slides.
 What this module does
 ---------------------
 - Generates Beamer-inspired CSS themes (Copenhagen, Madrid, Warsaw,
-  AnnArbor, Berkeley).
+  AnnArbor, Berkeley, Stanford, Gamecocks).
 - Injects CSS directly into the notebook via IPython.display so it works
   immediately — no external rise.css file required.
 - Also writes rise.css for RISE compatibility.
@@ -59,6 +59,9 @@ def apply_beamer_theme(
     date: str | None = None,
     logo_url: str | None = None,
     show_slide_number: bool = True,
+    cell_tags: bool = False,
+    notebook_path=None,
+    lock_markdown: bool = False,
 ):
     """
     Apply a Beamer-like theme to Jupyter slides by injecting CSS + a JS "shell".
@@ -93,11 +96,16 @@ def apply_beamer_theme(
     # Read CSS as text and inject directly (works in notebook + RISE without relying on static file serving)
     css_text = Path(css_path).read_text(encoding="utf-8")
 
+    # Normalize theme name for JS
+    theme_key = _normalize_theme(theme)
+
     config = {
         "author": author or "",
         "date": date or "",
         "logo_url": logo_url or "",
         "show_slide_number": bool(show_slide_number),
+        "lock_markdown": bool(lock_markdown),
+        "theme": theme_key,
     }
 
     js = f"""
@@ -150,6 +158,46 @@ def apply_beamer_theme(
     }}, true);
   }})();
 
+  // ── Lock markdown cells during slideshow (prevent double-click editing) ──
+  // When CONFIG.lock_markdown is true, intercept dblclick events on
+  // markdown cells within .reveal .slides to prevent entering edit mode.
+  (function() {{
+    if (!CONFIG.lock_markdown) return;
+
+    document.addEventListener("dblclick", function(e) {{
+      // Only active when RISE/Reveal is showing
+      var reveal = document.querySelector(".reveal");
+      if (!reveal) return;
+
+      // Check if click is inside a markdown cell within slides
+      var target = e.target;
+      var inSlides = false;
+      var inMarkdown = false;
+      var el = target;
+
+      while (el && el !== document.body) {{
+        if (el.classList && el.classList.contains("slides")) {{
+          inSlides = true;
+        }}
+        // Classic Jupyter markdown cell: .text_cell, .rendered_html
+        // JupyterLab: .jp-MarkdownCell
+        if (el.classList && (
+          el.classList.contains("text_cell") ||
+          el.classList.contains("jp-MarkdownCell") ||
+          (el.classList.contains("cell") && el.querySelector(".rendered_html"))
+        )) {{
+          inMarkdown = true;
+        }}
+        el = el.parentElement;
+      }}
+
+      if (inSlides && inMarkdown) {{
+        e.stopPropagation();
+        e.preventDefault();
+      }}
+    }}, true);  // capture phase
+  }})();
+
   function firstHeadingText(section) {{
     if (!section) return "";
     // In nbconvert slides, headings have id attributes with anchor links.
@@ -168,10 +216,7 @@ def apply_beamer_theme(
     var clone = h.cloneNode(true);
     var anchors = clone.querySelectorAll(".anchor-link");
     anchors.forEach(function(a) {{ a.remove(); }});
-    var text = (clone.textContent || "").trim();
-    // Strip {{zoom=X}} override syntax so it doesn't appear in the header bar
-    text = text.replace(/\{{zoom\s*=\s*[\d.]+\}}/g, "").trim();
-    return text;
+    return (clone.textContent || "").trim();
   }}
 
   function readSlideMeta(section) {{
@@ -191,98 +236,16 @@ def apply_beamer_theme(
     }};
   }}
 
-  // ── Per-slide auto-zoom ──
-  // Measures each slide's content against available space and applies
-  // CSS zoom to shrink overflowing slides.  Headings may include a
-  // {{zoom=X}} override that is stripped from display.
-
-  function parseZoomOverride(section) {{
-    // Returns the explicit zoom value (number) or null.
-    // Strips {{zoom=X}} from heading text nodes on first parse.
-    if (!section) return null;
-    if (section.getAttribute("data-beamer-zoom-parsed")) {{
-      var stored = section.getAttribute("data-beamer-zoom-override");
-      return stored ? parseFloat(stored) : null;
-    }}
-    section.setAttribute("data-beamer-zoom-parsed", "1");
-
-    var headings = section.querySelectorAll("h1, h2, h3");
-    for (var i = 0; i < headings.length; i++) {{
-      var h = headings[i];
-      var text = h.textContent || "";
-      var match = text.match(/\{{zoom\s*=\s*([\d.]+)\}}/);
-      if (match) {{
-        var zoomVal = parseFloat(match[1]);
-        // Strip {{zoom=X}} from text nodes only (preserve DOM structure).
-        // Walk all child text nodes and remove the pattern.
-        var walker = document.createTreeWalker(h, NodeFilter.SHOW_TEXT, null, false);
-        var node;
-        while (node = walker.nextNode()) {{
-          if (node.nodeValue && node.nodeValue.match(/\{{zoom\s*=\s*[\d.]+\}}/)) {{
-            node.nodeValue = node.nodeValue.replace(/\{{zoom\s*=\s*[\d.]+\}}/g, "");
-          }}
-        }}
-        if (!isNaN(zoomVal)) {{
-          section.setAttribute("data-beamer-zoom-override", String(zoomVal));
-          return zoomVal;
-        }}
-      }}
-    }}
-    return null;
-  }}
-
-  function computeAutoZoom(section) {{
-    // Measure the content's natural height vs available space.
-    // Returns a zoom factor in [0.4, 1.0] — scale down only.
-    if (!section) return 1;
-
-    // Temporarily reset zoom to measure natural dimensions
-    var prevZoom = section.style.zoom || "";
-    section.style.zoom = "1";
-    void section.offsetHeight;  // force reflow
-
-    var contentHeight = section.scrollHeight;
-    var containerHeight = section.clientHeight;
-
-    // Restore previous zoom
-    section.style.zoom = prevZoom;
-
-    if (contentHeight <= 0 || containerHeight <= 0) return 1;
-    if (contentHeight <= containerHeight) return 1;  // already fits
-
-    var zoom = containerHeight / contentHeight;
-    zoom = Math.max(0.4, Math.min(1.0, zoom));
-    return Math.round(zoom * 100) / 100;
-  }}
-
-  function applySlideZoom(section) {{
-    if (!section) return;
-
-    // Check for explicit {{zoom=X}} override in the heading
-    var override = parseZoomOverride(section);
-
-    var zoom;
-    if (override !== null) {{
-      // Explicit override — can be > 1 if user wants enlargement
-      zoom = override;
-    }} else {{
-      // Auto-compute — scale down only
-      zoom = computeAutoZoom(section);
-    }}
-
-    section.style.zoom = String(zoom);
-    section.setAttribute("data-beamer-zoom-applied", String(zoom));
-  }}
-
   function ensureShell(revealEl) {{
     if (!revealEl) return null;
 
     revealEl.classList.add("beamer-shell");
 
     // -------------------------------
-    // HEADLINE
+    // HEADLINE  — appended to document.body so no Reveal.js
+    // transform on .reveal can break position:fixed.
     // -------------------------------
-    var headline = revealEl.querySelector(".beamer-headline");
+    var headline = document.querySelector(".beamer-headline");
     if (!headline) {{
       headline = document.createElement("div");
       headline.className = "beamer-headline";
@@ -290,16 +253,16 @@ def apply_beamer_theme(
         <div class="beamer-head-left"></div>
         <div class="beamer-head-title"></div>
       `;
-      revealEl.appendChild(headline);
+      document.body.appendChild(headline);
     }}
 
     var headLeft = headline.querySelector(".beamer-head-left");
     var headTitle = headline.querySelector(".beamer-head-title");
 
     // -------------------------------
-    // FOOTLINE
+    // FOOTLINE  — also on document.body for the same reason.
     // -------------------------------
-    var footline = revealEl.querySelector(".beamer-footline");
+    var footline = document.querySelector(".beamer-footline");
     if (!footline) {{
       footline = document.createElement("div");
       footline.className = "beamer-footline";
@@ -308,12 +271,28 @@ def apply_beamer_theme(
         <div class="beamer-foot-center"></div>
         <div class="beamer-foot-right"></div>
       `;
-      revealEl.appendChild(footline);
+      document.body.appendChild(footline);
     }}
 
     var footLeft = footline.querySelector(".beamer-foot-left");
     var footCenter = footline.querySelector(".beamer-foot-center");
     var footRight = footline.querySelector(".beamer-foot-right");
+
+    // -------------------------------
+    // BACKGROUND BARS — coloured bars behind headline/footline.
+    // These replace the old .reveal::before/::after pseudo-elements
+    // which broke under Reveal.js transforms.
+    // -------------------------------
+    if (!document.querySelector(".beamer-head-bg")) {{
+      var headBg = document.createElement("div");
+      headBg.className = "beamer-head-bg";
+      document.body.appendChild(headBg);
+    }}
+    if (!document.querySelector(".beamer-foot-bg")) {{
+      var footBg = document.createElement("div");
+      footBg.className = "beamer-foot-bg";
+      document.body.appendChild(footBg);
+    }}
 
     // Hide Reveal.js's built-in slide number — we render our own.
     var builtinNum = revealEl.querySelector(".slide-number");
@@ -347,6 +326,8 @@ def apply_beamer_theme(
       headLeftEl.innerHTML = "";
     }}
   }}
+
+
 
   function updateShell(revealEl, parts) {{
     try {{
@@ -439,14 +420,7 @@ def apply_beamer_theme(
         }}
 
         updateShell(revealEl, parts);
-
-        // Apply zoom to the initial slide (after updateShell so title/counter are set)
-        var initialSlide = (typeof window.Reveal.getCurrentSlide === "function")
-          ? window.Reveal.getCurrentSlide()
-          : revealEl.querySelector("section.present");
-        if (initialSlide) applySlideZoom(initialSlide);
-
-        // Reveal.js 4.x uses .on(), 3.x (RISE) uses .addEventListener()
+// Reveal.js 4.x uses .on(), 3.x (RISE) uses .addEventListener()
         var bindEvent = (typeof window.Reveal.on === "function")
           ? function(evt, fn) {{ window.Reveal.on(evt, fn); }}
           : (typeof window.Reveal.addEventListener === "function")
@@ -456,16 +430,10 @@ def apply_beamer_theme(
         if (bindEvent) {{
           bindEvent("slidechanged", function() {{
             updateShell(revealEl, parts);
-            var slide = window.Reveal.getCurrentSlide();
-            applySlideZoom(slide);
-            // Re-check after 200ms for late-rendering content (MathJax, images)
-            setTimeout(function() {{ applySlideZoom(slide); }}, 200);
-          }});
+}});
           bindEvent("ready", function() {{
             updateShell(revealEl, parts);
-            var slide = window.Reveal.getCurrentSlide();
-            applySlideZoom(slide);
-          }});
+}});
         }}
 
         clearInterval(timer);
@@ -493,7 +461,54 @@ def apply_beamer_theme(
     display(HTML(f"<style>{css_text}</style>"))
     display(Javascript(js))
 
+    if cell_tags:
+        apply_cell_tags(notebook_path=notebook_path)
 
+
+
+def _build_inline_css_for_notebook(*, theme_key: str, assets_dir: str = "beamer_assets") -> str:
+    """
+    Build a single CSS string suitable for direct injection into a notebook/RISE.
+
+    Why: rise.css uses @import statements that often fail to resolve in Jupyter,
+    so the theme CSS (header/footer bars) never loads and the shell looks "missing".
+    """
+    root = Path.cwd()
+    assets_root = root / assets_dir
+    webfonts_root = assets_root / "webfonts"
+    themes_root = assets_root / "themes"
+
+    parts: List[str] = []
+
+    # ---- Inline font CSS if it exists ----
+    font_css_path = webfonts_root / "latinmodern-roman.css"
+    if font_css_path.exists():
+        font_css = font_css_path.read_text(encoding="utf-8", errors="replace")
+
+        # Rewrite url('./fonts/<file>') to Jupyter-served /files/... path
+        prefix = f"/files/{assets_dir}/webfonts/fonts/"
+        font_css = re.sub(
+            r"url\((['\"]?)(?:\./)?fonts/([^'\")]+)\1\)",
+            lambda m: f"url({m.group(1)}{prefix}{m.group(2)}{m.group(1)})",
+            font_css,
+        )
+
+        parts.append("/* === Vendored Latin Modern fonts (inline) === */\n")
+        parts.append(font_css)
+        parts.append("\n\n")
+
+    # ---- Inline theme CSS (this is what paints the header/footer bars) ----
+    theme_css_path = themes_root / f"beamer_{theme_key}.css"
+    if theme_css_path.exists():
+        parts.append("/* === Beamer theme CSS (inline) === */\n")
+        parts.append(theme_css_path.read_text(encoding="utf-8", errors="replace"))
+        parts.append("\n\n")
+
+    # ---- Inline global CSS (positions .beamer-headline/.beamer-footline etc.) ----
+    parts.append("/* === Global Beamer CSS (inline) === */\n")
+    parts.append(_GLOBAL_BEAMER_CSS)
+
+    return "".join(parts)
 
 
 def create_beamer_rise_theme(
@@ -546,6 +561,7 @@ def create_beamer_rise_theme(
     composed_css = _compose_rise_css(
         font_css_rel=_rel_or_none(font_css_path, root),
         theme_css_rel=_rel_or_none(theme_css_path, root),
+        theme_key=theme_key,
     )
     out_path.write_text(composed_css, encoding="utf-8")
 
@@ -613,17 +629,31 @@ def ensure_latin_modern_webfonts(webfonts_root: Path) -> Path:
 def _compose_rise_css(
     font_css_rel: Optional[str],
     theme_css_rel: Optional[str],
+    theme_key: Optional[str] = None,
 ) -> str:
+    """
+    Compose the final rise.css with correct cascade order:
+    1. Font CSS (import) - must come first per CSS spec
+    2. Global CSS (inline) - base styles
+    3. Theme CSS (inline) - theme-specific overrides
+
+    This order ensures theme CSS can override global defaults without !important.
+    """
     parts: List[str] = []
     parts.append("/* Auto-generated Beamer-style RISE theme */\n")
 
+    # @import must come first in CSS
     if font_css_rel:
         parts.append(f"@import url('{font_css_rel.replace(os.sep, '/')}');\n")
 
-    if theme_css_rel:
-        parts.append(f"@import url('{theme_css_rel.replace(os.sep, '/')}');\n")
-
+    # Global base styles come first (can be overridden by theme)
     parts.append(_GLOBAL_BEAMER_CSS)
+
+    # Theme-specific CSS comes last to override global defaults
+    if theme_key:
+        parts.append(f"\n/* ===== Theme: {theme_key} ===== */\n")
+        parts.append(_theme_css(theme_key))
+
     return "".join(parts)
 
 
@@ -826,7 +856,7 @@ body {
   display: flex;
   align-items: center;
   z-index: 1001;
-  font-size: 11px;
+  font-size: 14px;
   font-family: "Latin Modern Roman", "Computer Modern", serif;
   color: #fff;
   pointer-events: none;  /* don't intercept chalkboard drawing */
@@ -865,7 +895,7 @@ body {
   z-index: 1001;
   display: flex;
   align-items: center;
-  font-size: 18px;
+  font-size: 22px;
   font-weight: bold;
   font-family: "Latin Modern Roman", "Computer Modern", serif;
   color: #fff;
@@ -890,7 +920,7 @@ body {
 /* ===== Custom slide number inside .beamer-foot-right ===== */
 .beamer-slide-number {
   font-family: "Latin Modern Roman", "Computer Modern", serif;
-  font-size: 11px;
+  font-size: 14px;
   color: #fff;
   line-height: 28px;
 }
@@ -937,15 +967,33 @@ body {
 }
 
 
-/* Hide the in-slide h2 when the JS header bar is active (beamer-shell),
-   since the title is already shown in the header bar. */
-.beamer-shell .slides section h2 {
-  display: none;
+/* Hide the in-slide heading when the JS header is active (we render it in the headline bar) */
+.beamer-shell .slides section.present h1:first-child,
+.beamer-shell .slides section.present h2:first-child,
+.beamer-shell .slides section.present h3:first-child {
+  display: none !important;
 }
 
-/* Hide Reveal.js's built-in slide number — we render our own. */
-.beamer-shell .slide-number {
+/* Jupyter often wraps rendered markdown; hide the first heading inside common wrappers too */
+.beamer-shell .slides section.present .rendered_html h1:first-child,
+.beamer-shell .slides section.present .rendered_html h2:first-child,
+.beamer-shell .slides section.present .rendered_html h3:first-child,
+.beamer-shell .slides section.present .jp-RenderedHTMLCommon h1:first-child,
+.beamer-shell .slides section.present .jp-RenderedHTMLCommon h2:first-child,
+.beamer-shell .slides section.present .jp-RenderedHTMLCommon h3:first-child {
   display: none !important;
+}
+
+
+
+/* Hide built-in Reveal numbering in all common placements */
+.beamer-shell .slide-number,
+.beamer-shell .reveal .slide-number,
+.beamer-shell .reveal .slide-number-a,
+.beamer-shell .reveal .slide-number-delimiter,
+.beamer-shell .reveal .slide-number-b {
+  display: none !important;
+  visibility: hidden !important;
 }
 
 /* ===== Hide RISE / Reveal.js UI controls by default ===== */
@@ -975,12 +1023,6 @@ body:not(.beamer-hide-controls) div.btn-group.rise-toolbar {
   transition: opacity 0.25s ease;
 }
 
-/* ===== Per-slide auto-zoom support ===== */
-/* Ensure zoomed sections align top-left and don't clip */
-.reveal .slides section {
-  transform-origin: top left;
-  overflow: visible;
-}
 
 """
 
@@ -1009,6 +1051,34 @@ def _theme_css(theme_key: str) -> str:
 }
 
 /* ── Header bar (split outer theme) ── */
+.beamer-head-bg {
+  position: fixed;
+  top: 0; left: 0;
+  width: 100%;
+  height: 40px;
+  z-index: 1000;
+  background: linear-gradient(
+    to right,
+    var(--bm-structure) 0%,      var(--bm-structure) 50%,
+    var(--bm-structure-dark) 50%, var(--bm-structure-dark) 100%
+  );
+}
+
+.beamer-foot-bg {
+  position: fixed;
+  bottom: 0; left: 0;
+  width: 100%;
+  height: 28px;
+  z-index: 1000;
+  background: linear-gradient(
+    to right,
+    var(--bm-structure-darker) 0%,  var(--bm-structure-darker) 30%,
+    var(--bm-structure-dark)  30%,  var(--bm-structure-dark)  65%,
+    var(--bm-structure)       65%,  var(--bm-structure)       100%
+  );
+}
+
+/* ── Fallback: pseudo-elements for non-JS scenarios ── */
 .reveal::before {
   content: "";
   position: fixed;
@@ -1099,6 +1169,35 @@ def _theme_css(theme_key: str) -> str:
 }
 
 /* ── Header bar (infolines) ── */
+.beamer-head-bg {
+  position: fixed;
+  top: 0; left: 0;
+  width: 100%;
+  height: 40px;
+  z-index: 1000;
+  background: linear-gradient(
+    to right,
+    var(--bm-structure-darker) 0%,  var(--bm-structure-darker) 33%,
+    var(--bm-structure-dark)   33%, var(--bm-structure-dark)   66%,
+    var(--bm-structure)        66%, var(--bm-structure)        100%
+  );
+}
+
+.beamer-foot-bg {
+  position: fixed;
+  bottom: 0; left: 0;
+  width: 100%;
+  height: 28px;
+  z-index: 1000;
+  background: linear-gradient(
+    to right,
+    var(--bm-structure-darker) 0%,  var(--bm-structure-darker) 33%,
+    var(--bm-structure-dark)   33%, var(--bm-structure-dark)   66%,
+    var(--bm-structure)        66%, var(--bm-structure)        100%
+  );
+}
+
+/* ── Fallback: pseudo-elements for non-JS scenarios ── */
 .reveal::before {
   content: "";
   position: fixed;
@@ -1179,6 +1278,36 @@ def _theme_css(theme_key: str) -> str:
   --bm-example-body-bg:  #DEF0DE;
 }
 
+/* ── Header bar (shadow style) ── */
+.beamer-head-bg {
+  position: fixed;
+  top: 0; left: 0;
+  width: 100%;
+  height: 44px;
+  z-index: 1000;
+  background: linear-gradient(
+    to bottom,
+    var(--bm-structure) 0%, var(--bm-structure) 85%,
+    var(--bm-structure-dark) 100%
+  );
+  box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+}
+
+.beamer-foot-bg {
+  position: fixed;
+  bottom: 0; left: 0;
+  width: 100%;
+  height: 28px;
+  z-index: 1000;
+  background: linear-gradient(
+    to right,
+    var(--bm-structure-darker) 0%,  var(--bm-structure-darker) 33%,
+    var(--bm-structure-dark)   33%, var(--bm-structure-dark)   66%,
+    var(--bm-structure)        66%, var(--bm-structure)        100%
+  );
+}
+
+/* ── Fallback: pseudo-elements for non-JS scenarios ── */
 .reveal::before {
   content: "";
   position: fixed;
@@ -1262,6 +1391,36 @@ def _theme_css(theme_key: str) -> str:
   --bm-example-body-bg:  #DEF0DE;
 }
 
+/* ── Header bar (infolines) ── */
+.beamer-head-bg {
+  position: fixed;
+  top: 0; left: 0;
+  width: 100%;
+  height: 40px;
+  z-index: 1000;
+  background: linear-gradient(
+    to right,
+    var(--bm-blue)       0%,  var(--bm-blue)       33%,
+    var(--bm-maize-dark) 33%, var(--bm-maize-dark)  66%,
+    var(--bm-maize)      66%, var(--bm-maize)       100%
+  );
+}
+
+.beamer-foot-bg {
+  position: fixed;
+  bottom: 0; left: 0;
+  width: 100%;
+  height: 28px;
+  z-index: 1000;
+  background: linear-gradient(
+    to right,
+    var(--bm-blue)       0%,  var(--bm-blue)       33%,
+    var(--bm-maize-dark) 33%, var(--bm-maize-dark)  66%,
+    var(--bm-maize)      66%, var(--bm-maize)       100%
+  );
+}
+
+/* ── Fallback: pseudo-elements for non-JS scenarios ── */
 .reveal::before {
   content: "";
   position: fixed;
@@ -1344,6 +1503,26 @@ def _theme_css(theme_key: str) -> str:
   --bm-example-body-bg:  #DEF0DE;
 }
 
+/* ── Sidebar (left) + top bar ── */
+.beamer-head-bg {
+  position: fixed;
+  top: 0; left: 0;
+  width: 100px;
+  height: 100%;
+  z-index: 1000;
+  background: var(--bm-structure);
+}
+
+.beamer-foot-bg {
+  position: fixed;
+  top: 0; left: 100px;
+  width: calc(100% - 100px);
+  height: 36px;
+  z-index: 1000;
+  background: var(--bm-structure-dark);
+}
+
+/* ── Fallback: pseudo-elements for non-JS scenarios ── */
 .reveal::before {
   content: "";
   position: fixed;
@@ -1388,6 +1567,293 @@ def _theme_css(theme_key: str) -> str:
 .beamer-title-box {
   background: var(--bm-structure);
   border-radius: 0;
+}
+"""
+
+    # =====================================================================
+    # Stanford
+    # =====================================================================
+    if theme_key == "stanford":
+        return r"""
+/* Stanford theme – Cardinal red/white/black with striped header/footer */
+:root {
+  --bm-cardinal:       #8C1515;
+  --bm-cardinal-dark:  #820000;
+  --bm-white:          #FFFFFF;
+  --bm-black:          #2E2D29;
+  --bm-cool-gray:      #53565A;
+  --bm-palo-alto:      #175E54;
+  --bm-structure:      #8C1515;
+
+  --bm-block-bg:         #8C1515;
+  --bm-block-body-bg:    #F5E1E1;
+  --bm-alert-bg:         #820000;
+  --bm-alert-body-bg:    #F2DEDE;
+  --bm-example-bg:       #175E54;
+  --bm-example-body-bg:  #DEF0DE;
+}
+
+/* ── Header background bar ── */
+.beamer-head-bg {
+  position: fixed;
+  top: 0; left: 0;
+  width: 100%;
+  height: 40px;
+  z-index: 1000;
+  background: linear-gradient(
+    to right,
+    var(--bm-cardinal)  0%,   var(--bm-cardinal)  25%,
+    var(--bm-white)     25%,  var(--bm-white)     50%,
+    var(--bm-black)     50%,  var(--bm-black)     75%,
+    var(--bm-cool-gray) 75%,  var(--bm-cool-gray) 100%
+  );
+}
+
+/* ── Footer background bar (matching stripe pattern) ── */
+.beamer-foot-bg {
+  position: fixed;
+  bottom: 0; left: 0;
+  width: 100%;
+  height: 28px;
+  z-index: 1000;
+  background: linear-gradient(
+    to right,
+    var(--bm-cardinal)  0%,   var(--bm-cardinal)  25%,
+    var(--bm-white)     25%,  var(--bm-white)     50%,
+    var(--bm-black)     50%,  var(--bm-black)     75%,
+    var(--bm-cool-gray) 75%,  var(--bm-cool-gray) 100%
+  );
+}
+
+/* ── Header text: left side white (over red), title black (over white) ── */
+.beamer-headline {
+  color: #fff;
+  font-size: 22px;
+}
+
+.beamer-headline .beamer-head-title {
+  color: #000;
+}
+
+/* ── Footer text aligned to stripe colors ── */
+.beamer-footline {
+  font-size: 14px;
+}
+
+.beamer-footline .beamer-foot-left {
+  color: #fff;  /* white text over cardinal red stripe */
+}
+
+.beamer-footline .beamer-foot-center {
+  color: #820000;  /* cardinal dark text over white stripe */
+}
+
+.beamer-footline .beamer-foot-right {
+  color: #fff;  /* white text over black stripe */
+}
+
+.beamer-slide-number {
+  color: #fff !important;
+  font-size: 14px;
+}
+
+/* ── Fallback: pseudo-elements for non-JS scenarios ── */
+.reveal::before {
+  content: "";
+  position: fixed;
+  top: 0; left: 0;
+  width: 100%; height: 40px;
+  background: linear-gradient(
+    to right,
+    var(--bm-cardinal)  0%,   var(--bm-cardinal)  25%,
+    var(--bm-white)     25%,  var(--bm-white)     50%,
+    var(--bm-black)     50%,  var(--bm-black)     75%,
+    var(--bm-cool-gray) 75%,  var(--bm-cool-gray) 100%
+  );
+  z-index: 1000;
+}
+
+.reveal::after {
+  content: "";
+  position: fixed;
+  bottom: 0; left: 0;
+  width: 100%; height: 28px;
+  background: linear-gradient(
+    to right,
+    var(--bm-cardinal)  0%,   var(--bm-cardinal)  25%,
+    var(--bm-white)     25%,  var(--bm-white)     50%,
+    var(--bm-black)     50%,  var(--bm-black)     75%,
+    var(--bm-cool-gray) 75%,  var(--bm-cool-gray) 100%
+  );
+  z-index: 1000;
+}
+
+.reveal h2 {
+  background: var(--bm-cardinal);
+  color: #fff;
+  padding: 0.2em 0.6em;
+  border-radius: 6px;
+  font-size: 1.15em;
+  margin-bottom: 0.5em;
+}
+
+.reveal h1 {
+  color: var(--bm-cardinal);
+  font-size: 1.3em;
+}
+
+.reveal .slides section {
+  padding-top: 56px;
+  padding-bottom: 44px;
+}
+
+.reveal .slide-number {
+  background: var(--bm-cardinal);
+  color: #fff;
+  bottom: 0; right: 8px;
+  z-index: 1002;
+}
+
+.beamer-title-box {
+  background: var(--bm-cardinal);
+  border-radius: 8px;
+}
+
+/* Bullet color */
+.reveal {
+  --beamer-bullet: #8C1515;
+}
+"""
+
+    # =====================================================================
+    # Gamecocks (South Carolina)
+    # =====================================================================
+    if theme_key == "gamecocks":
+        return r"""
+/* Gamecocks theme – South Carolina garnet and black */
+:root {
+  --bm-garnet:       #73000A;
+  --bm-garnet-dark:  #5C0008;
+  --bm-black:        #000000;
+  --bm-white:        #FFFFFF;
+  --bm-structure:    #73000A;
+
+  --bm-block-bg:         #73000A;
+  --bm-block-body-bg:    #F5E1E2;
+  --bm-alert-bg:         #5C0008;
+  --bm-alert-body-bg:    #F2DEDE;
+  --bm-example-bg:       #006000;
+  --bm-example-body-bg:  #DEF0DE;
+}
+
+/* ── Header background bar ── */
+.beamer-head-bg {
+  position: fixed;
+  top: 0; left: 0;
+  width: 100%;
+  height: 40px;
+  z-index: 1000;
+  background: linear-gradient(
+    to right,
+    var(--bm-garnet) 0%,      var(--bm-garnet) 50%,
+    var(--bm-black)  50%,     var(--bm-black)  100%
+  );
+}
+
+/* ── Footer background bar ── */
+.beamer-foot-bg {
+  position: fixed;
+  bottom: 0; left: 0;
+  width: 100%;
+  height: 28px;
+  z-index: 1000;
+  background: linear-gradient(
+    to right,
+    var(--bm-garnet-dark) 0%,   var(--bm-garnet-dark) 33%,
+    var(--bm-garnet)      33%,  var(--bm-garnet)      66%,
+    var(--bm-black)       66%,  var(--bm-black)       100%
+  );
+}
+
+/* ── Header text ── */
+.beamer-headline {
+  color: #fff;
+  font-size: 22px;
+}
+
+/* ── Footer text ── */
+.beamer-footline {
+  font-size: 14px;
+  color: #fff;
+}
+
+.beamer-slide-number {
+  color: #fff !important;
+  font-size: 14px;
+}
+
+/* ── Fallback: pseudo-elements for non-JS scenarios ── */
+.reveal::before {
+  content: "";
+  position: fixed;
+  top: 0; left: 0;
+  width: 100%; height: 40px;
+  background: linear-gradient(
+    to right,
+    var(--bm-garnet) 0%,      var(--bm-garnet) 50%,
+    var(--bm-black)  50%,     var(--bm-black)  100%
+  );
+  z-index: 1000;
+}
+
+.reveal::after {
+  content: "";
+  position: fixed;
+  bottom: 0; left: 0;
+  width: 100%; height: 28px;
+  background: linear-gradient(
+    to right,
+    var(--bm-garnet-dark) 0%,   var(--bm-garnet-dark) 33%,
+    var(--bm-garnet)      33%,  var(--bm-garnet)      66%,
+    var(--bm-black)       66%,  var(--bm-black)       100%
+  );
+  z-index: 1000;
+}
+
+.reveal h2 {
+  background: var(--bm-garnet);
+  color: #fff;
+  padding: 0.2em 0.6em;
+  border-radius: 6px;
+  font-size: 1.15em;
+  margin-bottom: 0.5em;
+}
+
+.reveal h1 {
+  color: #fff;
+  font-size: 1.3em;
+}
+
+.reveal .slides section {
+  padding-top: 56px;
+  padding-bottom: 44px;
+}
+
+.reveal .slide-number {
+  background: var(--bm-garnet);
+  color: #fff;
+  bottom: 0; right: 8px;
+  z-index: 1002;
+}
+
+.beamer-title-box {
+  background: var(--bm-garnet);
+  border-radius: 8px;
+}
+
+/* Bullet color */
+.reveal {
+  --beamer-bullet: #73000A;
 }
 """
 
@@ -1528,14 +1994,597 @@ def _normalize_theme(theme: str) -> str:
         "annarbor": "annarbor",
         "ann arbor": "annarbor",
         "berkeley": "berkeley",
+        "stanford": "stanford",
+        "gamecocks": "gamecocks",
+        "south carolina": "gamecocks",
+        "usc": "gamecocks",
     }
     if t not in aliases:
         raise ValueError(f"Unknown theme '{theme}'.")
     return aliases[t]
 
 
+# =============================================================================
+# Per-slide CSS helpers — read notebook metadata, compute RISE slide IDs,
+# and inject targeted CSS for slides that carry specific cell tags.
+# =============================================================================
+
+def _detect_notebook_path() -> Path:
+    """
+    Try to auto-detect the path of the currently running notebook.
+
+    Strategy:
+    1. Try ``ipynbname`` (pip install ipynbname) — most reliable.
+    2. Fall back to globbing ``*.ipynb`` in cwd; use it if exactly one match.
+    3. Raise with a helpful message otherwise.
+    """
+    # Attempt 1: ipynbname
+    try:
+        import ipynbname
+        return Path(ipynbname.path())
+    except Exception:
+        pass
+
+    # Attempt 2: single .ipynb in cwd
+    notebooks = list(Path.cwd().glob("*.ipynb"))
+    # Filter out checkpoint files
+    notebooks = [p for p in notebooks if ".ipynb_checkpoints" not in str(p)]
+    if len(notebooks) == 1:
+        return notebooks[0]
+    if len(notebooks) == 0:
+        raise FileNotFoundError(
+            "No .ipynb files found in the current directory. "
+            "Pass notebook_path= explicitly."
+        )
+    raise FileNotFoundError(
+        f"Multiple .ipynb files in the current directory ({len(notebooks)} found). "
+        "Pass notebook_path= explicitly, e.g.:\n"
+        "  get_slide_info('MyPresentation.ipynb')"
+    )
+
+
+def get_slide_info(notebook_path=None):
+    """
+    Read a notebook's ``.ipynb`` JSON and return a DataFrame mapping every
+    cell to its RISE slide ID, slide type, tags, and a source preview.
+
+    Parameters
+    ----------
+    notebook_path : str or Path, optional
+        Path to the ``.ipynb`` file.  If *None*, auto-detects the notebook
+        in the current directory (see ``_detect_notebook_path``).
+
+    Returns
+    -------
+    pandas.DataFrame
+        Columns: ``cell_index``, ``cell_type``, ``slide_type``, ``slide_id``,
+        ``tags``, ``source_preview``.
+    """
+    import pandas as pd
+
+    nb_path = Path(notebook_path) if notebook_path else _detect_notebook_path()
+    with open(nb_path, "r", encoding="utf-8") as f:
+        nb = json.loads(f.read())
+
+    rows = []
+    h = -1          # horizontal slide index (0-based)
+    v = 0           # vertical sub-slide index (0-based)
+    current_id = ""
+
+    for i, cell in enumerate(nb.get("cells", [])):
+        meta = cell.get("metadata", {})
+        slide_type = meta.get("slideshow", {}).get("slide_type", "")
+        tags = meta.get("tags", [])
+        if tags is None:
+            tags = []
+        source = "".join(cell.get("source", []))
+        preview = source.replace("\n", " ")[:80]
+
+        # Compute RISE slide ID
+        if slide_type == "slide":
+            h += 1
+            v = 0
+            current_id = f"slide-{h}-{v}"
+        elif slide_type == "subslide":
+            v += 1
+            current_id = f"slide-{h}-{v}"
+        elif slide_type == "fragment":
+            # Fragments belong to the current slide — same ID
+            pass
+        elif slide_type in ("skip", "notes"):
+            current_id = ""
+        elif slide_type in ("-", ""):
+            # Continuation — belongs to the current slide if one exists
+            if h < 0:
+                current_id = ""
+
+        rows.append({
+            "cell_index": i,
+            "cell_type": cell.get("cell_type", ""),
+            "slide_type": slide_type,
+            "slide_id": current_id,
+            "tags": tags,
+            "source_preview": preview,
+        })
+
+    return pd.DataFrame(rows)
+
+
+def get_slide_tags(notebook_path=None):
+    """
+    Return only the slides that have cell tags, with a convenience ``tag``
+    column holding the first tag as a plain string.
+
+    Parameters
+    ----------
+    notebook_path : str or Path, optional
+        Passed through to :func:`get_slide_info`.
+
+    Returns
+    -------
+    pandas.DataFrame
+        Same columns as ``get_slide_info`` plus ``tag`` (first tag string).
+    """
+    df = get_slide_info(notebook_path)
+    # Keep only rows with non-empty tags
+    mask = df["tags"].apply(lambda t: len(t) > 0 if isinstance(t, list) else False)
+    tagged = df[mask].copy()
+    tagged["tag"] = tagged["tags"].apply(lambda t: t[0] if t else "")
+    return tagged.reset_index(drop=True)
+
+
+def apply_slide_css(
+    tag_css: Dict[str, str],
+    notebook_path=None,
+    *,
+    hide_input: bool = True,
+):
+    """
+    Inject per-slide CSS targeting RISE slide IDs based on cell tags.
+
+    Parameters
+    ----------
+    tag_css : dict
+        Mapping of tag name → CSS declarations.  Example::
+
+            {
+                "full": "top: 0 !important; height: 90% !important; width: 95% !important;",
+                "map":  "top: 0 !important; height: 70% !important; width: 90% !important;",
+            }
+
+    notebook_path : str or Path, optional
+        Passed through to :func:`get_slide_tags`.
+
+    hide_input : bool, default True
+        If *True*, also hides the code-input area for tagged slides.
+    """
+    from IPython.display import display, HTML
+
+    tagged = get_slide_tags(notebook_path)
+    if tagged.empty:
+        print("No tagged slides found — nothing to apply.")
+        return
+
+    css_parts = ["/* === Per-slide CSS from apply_slide_css() === */\n"]
+    applied = []
+
+    for _, row in tagged.iterrows():
+        tag = row["tag"]
+        slide_id = row["slide_id"]
+
+        if not slide_id or tag not in tag_css:
+            continue
+
+        css_body = tag_css[tag]
+
+        # Main slide rule
+        css_parts.append(
+            f".reveal .slides section.present#{slide_id} {{\n"
+            f"  {css_body}\n"
+            f"}}\n"
+        )
+
+        # Output wrapper gets the same sizing
+        css_parts.append(
+            f".reveal .slides section.present#{slide_id} > div > div.output_wrapper {{\n"
+            f"  {css_body}\n"
+            f"}}\n"
+        )
+
+        # Optionally hide code input
+        if hide_input:
+            css_parts.append(
+                f".reveal .slides section.present#{slide_id} > div > div.input {{\n"
+                f"  display: none !important;\n"
+                f"}}\n"
+            )
+
+        applied.append({
+            "slide_id": slide_id,
+            "tag": tag,
+            "css": css_body[:60] + ("..." if len(css_body) > 60 else ""),
+        })
+
+    if not applied:
+        print("No matching tag→CSS rules to apply.")
+        return
+
+    css_text = "\n".join(css_parts)
+    display(HTML(f"<style>{css_text}</style>"))
+
+    # Print summary
+    import pandas as pd
+    summary = pd.DataFrame(applied)
+    print(f"\n✓ Injected CSS for {len(applied)} slide(s):")
+    print(summary.to_string(index=False))
+
+
+def apply_cell_tags(
+    notebook_path=None,
+):
+    """
+    Process cell-level tags and inject CSS/JS to apply display changes.
+
+    Recognised tags (set in each cell's metadata → tags list):
+
+    **Always active** (notebook *and* slideshow):
+
+    * ``remove_input``  — hide the code-input area of that cell.
+    * ``remove_output`` — hide the output area of that cell.
+    * ``side_by_side``  — display input and output side by side.
+    * ``hide_prompt``   — hide the In[N]/Out[N] prompt labels.
+
+    **Slide-only** (hidden only during RISE presentation; fully visible
+    in normal notebook editing so you can still edit the cell):
+
+    * ``slide_remove_input``  — hide input during slideshow only.
+    * ``slide_remove_output`` — hide output during slideshow only.
+    * ``slide_side_by_side``  — side-by-side during slideshow only.
+    * ``slide_hide_prompt``   — hide In[N]/Out[N] prompts during slideshow only.
+
+    Can be called standalone or automatically via
+    ``apply_beamer_theme(..., cell_tags=True)``.
+
+    Parameters
+    ----------
+    notebook_path : str or Path, optional
+        The ``.ipynb`` file to read.  If omitted the notebook is
+        auto-detected (single ``.ipynb`` in cwd, or via ``ipynbname``).
+    """
+    from IPython.display import display, HTML
+
+    RECOGNISED_TAGS = {
+        "remove_input", "remove_output", "side_by_side",
+        "slide_remove_input", "slide_remove_output", "slide_side_by_side",
+        "hide_prompt", "slide_hide_prompt",
+    }
+
+    df = get_slide_info(notebook_path)
+
+    # Build a mapping: cell_index → set of recognised tags
+    tag_map = {}  # {cell_index: set_of_tags}
+    for _, row in df.iterrows():
+        tags = row["tags"]
+        if not isinstance(tags, list):
+            continue
+        matched = set(tags) & RECOGNISED_TAGS
+        if matched:
+            tag_map[int(row["cell_index"])] = matched
+
+    if not tag_map:
+        print("No cells with recognised display tags found.")
+        return
+
+    # ---- CSS rules ----
+    css = """
+/* === Cell-tag display rules from apply_cell_tags() === */
+
+/* --------------------------------------------------------
+   ALWAYS-ACTIVE variants (notebook + slideshow)
+   -------------------------------------------------------- */
+
+/* remove_input: hide the input/code area */
+.cell.beamer-remove-input > .input,
+.cell.beamer-remove-input > .jp-Cell-inputWrapper,
+.cell.beamer-remove-input > .inner_cell > .input_area {
+  display: none !important;
+}
+
+/* remove_output: hide the output area */
+.cell.beamer-remove-output > .output_wrapper,
+.cell.beamer-remove-output > .jp-Cell-outputWrapper,
+.cell.beamer-remove-output > .inner_cell > .output_wrapper {
+  display: none !important;
+}
+
+/* side_by_side: input and output next to each other */
+.cell.beamer-side-by-side {
+  display: flex !important;
+  flex-direction: row !important;
+  flex-wrap: nowrap !important;
+  align-items: flex-start !important;
+}
+.cell.beamer-side-by-side > .input,
+.cell.beamer-side-by-side > .jp-Cell-inputWrapper {
+  flex: 1 1 48% !important;
+  min-width: 0 !important;
+  max-width: 50% !important;
+}
+.cell.beamer-side-by-side > .output_wrapper,
+.cell.beamer-side-by-side > .jp-Cell-outputWrapper {
+  flex: 1 1 48% !important;
+  min-width: 0 !important;
+  max-width: 50% !important;
+}
+
+/* --------------------------------------------------------
+   SLIDE-ONLY variants (only during RISE / Reveal.js)
+   Scoped under .reveal .slides so normal editing is
+   unaffected — you can still see and edit the cell.
+   -------------------------------------------------------- */
+
+/* slide_remove_input */
+.reveal .slides .cell.beamer-slide-remove-input > .input,
+.reveal .slides .cell.beamer-slide-remove-input > .jp-Cell-inputWrapper,
+.reveal .slides .cell.beamer-slide-remove-input > .inner_cell > .input_area {
+  display: none !important;
+}
+
+/* slide_remove_output */
+.reveal .slides .cell.beamer-slide-remove-output > .output_wrapper,
+.reveal .slides .cell.beamer-slide-remove-output > .jp-Cell-outputWrapper,
+.reveal .slides .cell.beamer-slide-remove-output > .inner_cell > .output_wrapper {
+  display: none !important;
+}
+
+/* slide_side_by_side */
+.reveal .slides .cell.beamer-slide-side-by-side {
+  display: flex !important;
+  flex-direction: row !important;
+  flex-wrap: nowrap !important;
+  align-items: flex-start !important;
+}
+.reveal .slides .cell.beamer-slide-side-by-side > .input,
+.reveal .slides .cell.beamer-slide-side-by-side > .jp-Cell-inputWrapper {
+  flex: 1 1 48% !important;
+  min-width: 0 !important;
+  max-width: 50% !important;
+}
+.reveal .slides .cell.beamer-slide-side-by-side > .output_wrapper,
+.reveal .slides .cell.beamer-slide-side-by-side > .jp-Cell-outputWrapper {
+  flex: 1 1 48% !important;
+  min-width: 0 !important;
+  max-width: 50% !important;
+}
+
+/* --------------------------------------------------------
+   PROMPT HIDING (In[N] / Out[N] labels)
+   -------------------------------------------------------- */
+
+/* hide_prompt: hide In/Out prompts (always active) */
+.cell.beamer-hide-prompt .prompt,
+.cell.beamer-hide-prompt .input_prompt,
+.cell.beamer-hide-prompt .output_prompt,
+.cell.beamer-hide-prompt .jp-InputPrompt,
+.cell.beamer-hide-prompt .jp-OutputPrompt {
+  display: none !important;
+}
+
+/* slide_hide_prompt: hide In/Out prompts during slideshow only */
+.reveal .slides .cell.beamer-slide-hide-prompt .prompt,
+.reveal .slides .cell.beamer-slide-hide-prompt .input_prompt,
+.reveal .slides .cell.beamer-slide-hide-prompt .output_prompt,
+.reveal .slides .cell.beamer-slide-hide-prompt .jp-InputPrompt,
+.reveal .slides .cell.beamer-slide-hide-prompt .jp-OutputPrompt {
+  display: none !important;
+}
+"""
+
+    # ---- JS to apply CSS classes to the correct cells ----
+    import json as _json
+    tag_map_json = _json.dumps(
+        {str(k): sorted(v) for k, v in tag_map.items()}
+    )
+
+    js = f"""
+<script>
+(function() {{
+  var TAG_MAP = {tag_map_json};
+
+  var CLASS_MAP = {{
+    "remove_input":        "beamer-remove-input",
+    "remove_output":       "beamer-remove-output",
+    "side_by_side":        "beamer-side-by-side",
+    "slide_remove_input":  "beamer-slide-remove-input",
+    "slide_remove_output": "beamer-slide-remove-output",
+    "slide_side_by_side":  "beamer-slide-side-by-side",
+    "hide_prompt":         "beamer-hide-prompt",
+    "slide_hide_prompt":   "beamer-slide-hide-prompt"
+  }};
+
+  function applyTagClasses() {{
+    var cells = document.querySelectorAll(
+      ".notebook-container .cell, #notebook-container .cell, .reveal .slides .cell"
+    );
+
+    var seen = new Set();
+    var ordered = [];
+    cells.forEach(function(c) {{
+      if (!seen.has(c)) {{
+        seen.add(c);
+        ordered.push(c);
+      }}
+    }});
+
+    if (ordered.length === 0) {{
+      document.querySelectorAll(".cell").forEach(function(c) {{
+        if (!seen.has(c)) {{
+          seen.add(c);
+          ordered.push(c);
+        }}
+      }});
+    }}
+
+    for (var idxStr in TAG_MAP) {{
+      var idx = parseInt(idxStr, 10);
+      if (idx < ordered.length) {{
+        var el = ordered[idx];
+        var tags = TAG_MAP[idxStr];
+        for (var i = 0; i < tags.length; i++) {{
+          var cls = CLASS_MAP[tags[i]];
+          if (cls && !el.classList.contains(cls)) {{
+            el.classList.add(cls);
+          }}
+        }}
+      }}
+    }}
+  }}
+
+  applyTagClasses();
+  setTimeout(applyTagClasses, 500);
+  setTimeout(applyTagClasses, 2000);
+
+  function hookReveal() {{
+    if (window.Reveal) {{
+      var bind = (typeof window.Reveal.on === "function")
+        ? function(e, f) {{ window.Reveal.on(e, f); }}
+        : (typeof window.Reveal.addEventListener === "function")
+          ? function(e, f) {{ window.Reveal.addEventListener(e, f); }}
+          : null;
+      if (bind) {{
+        bind("slidechanged", applyTagClasses);
+        bind("ready", applyTagClasses);
+      }}
+    }}
+  }}
+
+  if (document.readyState === "loading") {{
+    document.addEventListener("DOMContentLoaded", function() {{
+      applyTagClasses();
+      hookReveal();
+    }});
+  }} else {{
+    hookReveal();
+  }}
+}})();
+</script>
+"""
+
+    display(HTML(f"<style>{css}</style>{js}"))
+
+    # Print summary
+    summary_rows = []
+    for idx, tags in sorted(tag_map.items()):
+        slide_id = df.loc[df["cell_index"] == idx, "slide_id"].values
+        sid = slide_id[0] if len(slide_id) > 0 else ""
+        summary_rows.append({
+            "cell_index": idx,
+            "slide_id": sid,
+            "tags": ", ".join(sorted(tags)),
+        })
+
+    import pandas as pd
+    summary = pd.DataFrame(summary_rows)
+    print(f"\n✓ Cell tag CSS applied for {len(summary_rows)} cell(s):")
+    print(summary.to_string(index=False))
+
+
+def style_slide(
+    slide_css: Dict[str, str],
+    *,
+    hide_input: bool = False,
+):
+    """
+    Inject arbitrary CSS for specific RISE slides, addressed by slide ID.
+
+    Parameters
+    ----------
+    slide_css : dict
+        Mapping of slide identifier → CSS declarations.  The key can be:
+
+        * A full RISE id: ``"slide-7-1"``
+        * A short ``H-V`` form: ``"7-1"``  (becomes ``slide-7-1``)
+        * A dotted ``H.V`` form: ``"7.1"`` (becomes ``slide-7-1``)
+        * A bare number: ``"7"``           (becomes ``slide-7-0``)
+
+        The value is any CSS declarations to apply.  Example::
+
+            style_slide({
+                "7.1": "font-size: 0.7em !important;",
+                "3":   "background: #fafafa !important;",
+            })
+
+    hide_input : bool, default False
+        If *True*, also hides the code-input area for the targeted slides.
+    """
+    from IPython.display import display, HTML
+
+    def _normalise_id(key: str) -> str:
+        """Turn a user-friendly key into a 'slide-H-V' string."""
+        key = key.strip()
+        if key.startswith("slide-"):
+            return key  # already canonical
+        # Replace dots with dashes: "7.1" → "7-1"
+        key = key.replace(".", "-")
+        parts = key.split("-")
+        if len(parts) == 1:
+            return f"slide-{parts[0]}-0"
+        return f"slide-{'-'.join(parts)}"
+
+    css_parts = ["/* === Per-slide CSS from style_slide() === */\n"]
+    applied = []
+
+    for raw_id, css_body in slide_css.items():
+        slide_id = _normalise_id(raw_id)
+
+        # Main slide rule
+        css_parts.append(
+            f".reveal .slides section.present#{slide_id} {{\n"
+            f"  {css_body}\n"
+            f"}}\n"
+        )
+
+        # Output wrapper gets the same sizing
+        css_parts.append(
+            f".reveal .slides section.present#{slide_id} > div > div.output_wrapper {{\n"
+            f"  {css_body}\n"
+            f"}}\n"
+        )
+
+        # Optionally hide code input
+        if hide_input:
+            css_parts.append(
+                f".reveal .slides section.present#{slide_id} > div > div.input {{\n"
+                f"  display: none !important;\n"
+                f"}}\n"
+            )
+
+        applied.append({
+            "slide_id": slide_id,
+            "css": css_body[:60] + ("..." if len(css_body) > 60 else ""),
+        })
+
+    if not applied:
+        print("No slide CSS rules to apply.")
+        return
+
+    css_text = "\n".join(css_parts)
+    display(HTML(f"<style>{css_text}</style>"))
+
+    # Print summary
+    import pandas as pd
+    summary = pd.DataFrame(applied)
+    print(f"\n✓ Injected CSS for {len(applied)} slide(s):")
+    print(summary.to_string(index=False))
+
+
 __all__ = [
     "apply_beamer_theme",
     "create_beamer_rise_theme",
     "ensure_latin_modern_webfonts",
+    "get_slide_info",
+    "get_slide_tags",
+    "apply_slide_css",
+    "apply_cell_tags",
+    "style_slide",
 ]
