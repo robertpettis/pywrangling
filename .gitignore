@@ -8,3 +8,8 @@ dist/
 test_cprint.py
 bad_csv_example.csv
 test graphing.py
+*.log
+*.css
+.claude/
+.idea/
+.ipynb_checkpoints/
