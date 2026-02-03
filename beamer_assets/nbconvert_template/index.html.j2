@@ -327,7 +327,7 @@ body {
   display: flex;
   align-items: center;
   z-index: 1001;
-  font-size: 11px;
+  font-size: 14px;
   font-family: "Latin Modern Roman", "Computer Modern", serif;
   color: #fff;
   pointer-events: none;  /* don't intercept chalkboard drawing */
@@ -366,7 +366,7 @@ body {
   z-index: 1001;
   display: flex;
   align-items: center;
-  font-size: 18px;
+  font-size: 22px;
   font-weight: bold;
   font-family: "Latin Modern Roman", "Computer Modern", serif;
   color: #fff;
@@ -391,7 +391,7 @@ body {
 /* ===== Custom slide number inside .beamer-foot-right ===== */
 .beamer-slide-number {
   font-family: "Latin Modern Roman", "Computer Modern", serif;
-  font-size: 11px;
+  font-size: 14px;
   color: #fff;
   line-height: 28px;
 }
@@ -465,6 +465,33 @@ body {
 .beamer-shell .reveal .slide-number-b {
   display: none !important;
   visibility: hidden !important;
+}
+
+/* ===== Hide RISE / Reveal.js UI controls by default ===== */
+/* Toggled visible with the comma key via JS.                */
+/* Targets: RISE toolbar (exit X, help), chalkboard icons,   */
+/* Reveal.js navigation arrows, and custom-controls.         */
+body.beamer-hide-controls .reveal .slide-menu-button,
+body.beamer-hide-controls #exit_b,
+body.beamer-hide-controls #help_b,
+body.beamer-hide-controls .chalkboard-button,
+body.beamer-hide-controls .reveal .customcontrols,
+body.beamer-hide-controls div.btn-group.rise-toolbar {
+  opacity: 0 !important;
+  pointer-events: none !important;
+  transition: opacity 0.25s ease;
+}
+
+/* When controls are shown (class removed), fade them in */
+body:not(.beamer-hide-controls) .reveal .slide-menu-button,
+body:not(.beamer-hide-controls) #exit_b,
+body:not(.beamer-hide-controls) #help_b,
+body:not(.beamer-hide-controls) .chalkboard-button,
+body:not(.beamer-hide-controls) .reveal .customcontrols,
+body:not(.beamer-hide-controls) div.btn-group.rise-toolbar {
+  opacity: 1 !important;
+  pointer-events: auto !important;
+  transition: opacity 0.25s ease;
 }
 
 
