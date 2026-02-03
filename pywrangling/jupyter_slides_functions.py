@@ -135,10 +135,20 @@ def apply_beamer_theme(
 
   // ── Hide RISE/Reveal UI controls by default; comma key toggles ──
   // Adds .beamer-hide-controls to <body> immediately so controls start
-  // hidden.  The comma key binding is registered via Reveal.configure()
-  // inside bootWhenReady() so Reveal.js delegates it to us instead of
-  // swallowing the event.
-  document.body.classList.add("beamer-hide-controls");
+  // hidden.  Comma key (188) is set to null in Reveal.configure() so
+  // Reveal passes it through, and we handle it here with e.repeat
+  // filtering so it only toggles once per press.
+  (function() {{
+    document.body.classList.add("beamer-hide-controls");
+
+    document.addEventListener("keydown", function(e) {{
+      if ((e.key === "," || e.keyCode === 188) && !e.repeat) {{
+        var tag = (e.target.tagName || "").toLowerCase();
+        if (tag === "input" || tag === "textarea" || e.target.isContentEditable) return;
+        document.body.classList.toggle("beamer-hide-controls");
+      }}
+    }}, true);
+  }})();
 
   function firstHeadingText(section) {{
     if (!section) return "";
@@ -333,13 +343,11 @@ def apply_beamer_theme(
             // chalkboard plugin's pen drawing, causing strokes to jerk
             // sideways as Reveal interprets them as slide-change swipes.
             touch: false,
-            // Register comma key (keyCode 188) to toggle UI controls.
-            // Registering through Reveal.configure ensures Reveal doesn't
-            // swallow the keystroke before our handler runs.
+            // Tell Reveal.js to pass comma key (188) through to the DOM
+            // instead of swallowing it — our capture-phase keydown
+            // listener handles the toggle with e.repeat filtering.
             keyboard: {{
-              188: function() {{
-                document.body.classList.toggle("beamer-hide-controls");
-              }}
+              188: null
             }}
           }});
         }}
