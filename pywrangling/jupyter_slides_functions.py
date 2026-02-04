@@ -984,6 +984,16 @@ body {
   display: none !important;
 }
 
+/* EXCEPTION: Never hide headings inside .beamer-title-box (title slide) */
+.beamer-shell .slides section.present .beamer-title-box h1,
+.beamer-shell .slides section.present .beamer-title-box h2,
+.beamer-shell .slides section.present .rendered_html .beamer-title-box h1,
+.beamer-shell .slides section.present .rendered_html .beamer-title-box h2,
+.beamer-shell .slides section.present .jp-RenderedHTMLCommon .beamer-title-box h1,
+.beamer-shell .slides section.present .jp-RenderedHTMLCommon .beamer-title-box h2 {
+  display: block !important;
+}
+
 
 
 /* Hide built-in Reveal numbering in all common placements */
@@ -996,32 +1006,7 @@ body {
   visibility: hidden !important;
 }
 
-/* ===== Hide RISE / Reveal.js UI controls by default ===== */
-/* Toggled visible with the comma key via JS.                */
-/* Targets: RISE toolbar (exit X, help), chalkboard icons,   */
-/* Reveal.js navigation arrows, and custom-controls.         */
-body.beamer-hide-controls .reveal .slide-menu-button,
-body.beamer-hide-controls #exit_b,
-body.beamer-hide-controls #help_b,
-body.beamer-hide-controls .chalkboard-button,
-body.beamer-hide-controls .reveal .customcontrols,
-body.beamer-hide-controls div.btn-group.rise-toolbar {
-  opacity: 0 !important;
-  pointer-events: none !important;
-  transition: opacity 0.25s ease;
-}
 
-/* When controls are shown (class removed), fade them in */
-body:not(.beamer-hide-controls) .reveal .slide-menu-button,
-body:not(.beamer-hide-controls) #exit_b,
-body:not(.beamer-hide-controls) #help_b,
-body:not(.beamer-hide-controls) .chalkboard-button,
-body:not(.beamer-hide-controls) .reveal .customcontrols,
-body:not(.beamer-hide-controls) div.btn-group.rise-toolbar {
-  opacity: 1 !important;
-  pointer-events: auto !important;
-  transition: opacity 0.25s ease;
-}
 
 
 """
