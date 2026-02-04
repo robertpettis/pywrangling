@@ -200,18 +200,57 @@ def apply_beamer_theme(
 
   function firstHeadingText(section) {{
     if (!section) return "";
-    // In nbconvert slides, headings have id attributes with anchor links.
-    // In RISE, they're inside .rendered_html or .jp-RenderedHTMLCommon.
-    // querySelector searches all descendants, so this handles both cases.
-    var h = section.querySelector("h2, h3, h1");
 
-    // If no heading in the current (sub-)section, check the parent section
-    // (Reveal.js nests vertical slides inside a parent <section>).
-    if (!h && section.parentElement && section.parentElement.tagName === "SECTION") {{
-      h = section.parentElement.querySelector("h2, h3, h1");
+    // Title slides (containing .beamer-title-box) should not show a header title
+    if (section.querySelector(".beamer-title-box")) {{
+      return "";
+    }}
+
+    // Only look for headings that are DIRECT children of this section's content,
+    // not from other cells or nested sections.
+    // First, try to find headings in rendered markdown cells within this section.
+    var contentAreas = section.querySelectorAll(
+      ":scope > .cell .rendered_html, " +
+      ":scope > .cell .jp-RenderedHTMLCommon, " +
+      ":scope > .rendered_html, " +
+      ":scope > .jp-RenderedHTMLCommon"
+    );
+
+    var h = null;
+
+    // Search in content areas first (most reliable)
+    for (var j = 0; j < contentAreas.length && !h; j++) {{
+      var area = contentAreas[j];
+
+      // Skip if this content area is in a cell marked as skip/notes
+      var cell = area.closest(".cell, .jp-Cell");
+      if (cell) {{
+        var slideType = cell.getAttribute("data-slide-type");
+        if (slideType === "skip" || slideType === "notes") continue;
+      }}
+
+      var headings = area.querySelectorAll("h1, h2, h3");
+      for (var i = 0; i < headings.length; i++) {{
+        var candidate = headings[i];
+
+        // Skip headings inside .beamer-title-box
+        if (candidate.closest(".beamer-title-box")) continue;
+
+        h = candidate;
+        break;
+      }}
+    }}
+
+    // Fallback: direct heading children of the section (for nbconvert output)
+    if (!h) {{
+      var directHeadings = section.querySelectorAll(":scope > h1, :scope > h2, :scope > h3");
+      if (directHeadings.length > 0) {{
+        h = directHeadings[0];
+      }}
     }}
 
     if (!h) return "";
+
     // Strip the pilcrow/anchor-link text that nbconvert appends
     var clone = h.cloneNode(true);
     var anchors = clone.querySelectorAll(".anchor-link");
