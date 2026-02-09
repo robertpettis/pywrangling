@@ -45,7 +45,7 @@ from pathlib import Path
 from typing import Dict, List, Optional
 from urllib.parse import urljoin, urlparse
 import json
-
+from IPython.display import Javascript, display
 
 # =============================================================================
 # Public API
@@ -2602,6 +2602,152 @@ def style_slide(
     print(summary.to_string(index=False))
 
 
+
+def enable_reveal_key_remap(
+    keymap: dict,
+    toggle_keycode: int = 192,   # ` backtick
+    start_enabled: bool = True,
+    announce: bool = True,
+):
+    """
+    Flexible Reveal.js / RISE key remapper.
+
+    Parameters
+    ----------
+    keymap : dict
+        Mapping of keycode -> Reveal action or function name.
+        Examples:
+            {32: "up", 27: "down"}
+            {33: "navigateUp", 34: "navigateDown"}
+            {66: "togglePause"}
+
+        Valid actions:
+            "up", "down", "left", "right"
+            OR any Reveal function name without 'Reveal.' prefix.
+
+    toggle_keycode : int
+        Keycode to toggle remapping on/off (default: backtick `).
+
+    start_enabled : bool
+        Whether remapping starts enabled.
+
+    announce : bool
+        Log enable/disable state to console.
+
+    Usage
+    -----
+    enable_reveal_key_remap({
+        32: "up",     # Play  -> vertical up
+        27: "down",   # Stop  -> vertical down
+    })
+    """
+
+
+
+    cfg = {
+        "keymap": {int(k): v for k, v in keymap.items()},
+        "toggle_keycode": int(toggle_keycode),
+        "start_enabled": bool(start_enabled),
+        "announce": bool(announce),
+    }
+
+    js = f"""
+(function() {{
+  const CFG = {json.dumps(cfg)};
+
+  function boot() {{
+    if (!window.Reveal) {{
+      setTimeout(boot, 100);
+      return;
+    }}
+
+    if (!window.__REVEAL_KEY_REMAP__) {{
+      window.__REVEAL_KEY_REMAP__ = {{
+        enabled: CFG.start_enabled,
+        installed: false
+      }};
+    }}
+
+    // Prevent Reveal from swallowing remapped keys
+    const nullMap = {{}};
+    for (const code in CFG.keymap) nullMap[code] = null;
+    nullMap[CFG.toggle_keycode] = null;
+
+    Reveal.configure({{
+      keyboard: nullMap
+    }});
+
+    if (window.__REVEAL_KEY_REMAP__.installed) return;
+
+    function logState() {{
+      if (CFG.announce) {{
+        console.log(
+          "[reveal-keymap]",
+          window.__REVEAL_KEY_REMAP__.enabled ? "ENABLED" : "DISABLED"
+        );
+      }}
+    }}
+
+    function invoke(action) {{
+      if (typeof action === "string") {{
+        // shorthand directions
+        if (["up","down","left","right"].includes(action)) {{
+          const fn = "navigate" + action[0].toUpperCase() + action.slice(1);
+          if (Reveal[fn]) Reveal[fn]();
+          return;
+        }}
+        // explicit Reveal method
+        if (Reveal[action]) {{
+          Reveal[action]();
+        }}
+      }}
+    }}
+
+    function onKeyDown(e) {{
+      const code = e.keyCode || e.which;
+
+      // Toggle remapping
+      if (code === CFG.toggle_keycode && !e.repeat) {{
+        window.__REVEAL_KEY_REMAP__.enabled =
+          !window.__REVEAL_KEY_REMAP__.enabled;
+        logState();
+        e.preventDefault();
+        e.stopPropagation();
+        return;
+      }}
+
+      if (!window.__REVEAL_KEY_REMAP__.enabled) return;
+
+      if (CFG.keymap.hasOwnProperty(code)) {{
+        e.preventDefault();
+        e.stopPropagation();
+        invoke(CFG.keymap[code]);
+      }}
+    }}
+
+    window.addEventListener("keydown", onKeyDown, true);
+    window.__REVEAL_KEY_REMAP__.installed = true;
+    logState();
+  }}
+
+  boot();
+}})();
+"""
+    display(Javascript(js))
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 __all__ = [
     "apply_beamer_theme",
     "create_beamer_rise_theme",
@@ -2611,4 +2757,5 @@ __all__ = [
     "apply_slide_css",
     "apply_cell_tags",
     "style_slide",
+    "enable_reveal_key_remap"
 ]
