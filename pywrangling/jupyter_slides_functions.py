@@ -2627,7 +2627,6 @@ def enable_reveal_key_remap(keymap: dict, toggle_keycode: int = 192):
     cfg = {
         "keymap": {str(int(k)): v for k, v in keymap.items()},
         "toggle": int(toggle_keycode),
-        "log_toggle_combo": {"shift": True, "keycode": int(toggle_keycode)},
         "flash_ms": 1000,
     }
 
@@ -2635,175 +2634,180 @@ def enable_reveal_key_remap(keymap: dict, toggle_keycode: int = 192):
 (function() {{
   var CFG = {json.dumps(cfg)};
 
-  // Try the top-level window first (RISE runs there), fall back to current
+  // ── Find the right window ──
+  // In classic Jupyter, RISE runs in the top-level window.
+  // display(HTML) injects into the cell output iframe.
+  // We need to install on the TOP window where Reveal lives.
   var W, D;
   try {{ W = window.top; D = W.document; D.title; }}
   catch (_) {{ W = window; D = document; }}
 
-  var MAX_WAIT = 15000;  // give up after 15 s
-  var started  = Date.now();
+  // ── Store config on the TOP window so it persists across cell re-runs
+  //    and survives RISE being toggled on/off ──
+  if (!W.__REVEAL_KEY_REMAP__) {{
+    W.__REVEAL_KEY_REMAP__ = {{
+      enabled:    true,
+      logging:    false,
+      installed:  false,
+      flashTimer: null,
+      keymap:     {{}},
+      toggle:     CFG.toggle
+    }};
+  }}
+  var ST = W.__REVEAL_KEY_REMAP__;
 
-  function boot() {{
-    var Reveal = W.Reveal;
+  // Merge the new keymap (allows incremental calls)
+  var k;
+  for (k in CFG.keymap) {{
+    if (CFG.keymap.hasOwnProperty(k)) ST.keymap[k] = CFG.keymap[k];
+  }}
+  ST.toggle = CFG.toggle;
 
-    if (!Reveal || typeof Reveal.configure !== "function") {{
-      if (Date.now() - started < MAX_WAIT) {{
-        setTimeout(boot, 200);
-      }} else {{
-        console.warn("[reveal-keymap] Reveal.js not found after " + MAX_WAIT + "ms — is RISE running?");
+  // ── toast helper ──
+  function flash(message) {{
+    try {{
+      var el = D.getElementById("__reveal_keymap_toast__");
+      if (!el) {{
+        el = D.createElement("div");
+        el.id = "__reveal_keymap_toast__";
+        el.style.cssText =
+          "position:fixed; z-index:999999; left:50%; top:18px;" +
+          "transform:translateX(-50%); padding:10px 14px; border-radius:10px;" +
+          "font-size:16px; font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;" +
+          "letter-spacing:0.2px; box-shadow:0 6px 22px rgba(0,0,0,0.28);" +
+          "background:rgba(0,0,0,0.78); color:white; pointer-events:none;" +
+          "opacity:0; transition:opacity 120ms ease;";
+        D.body.appendChild(el);
       }}
+      el.textContent = message;
+      el.style.opacity = "1";
+      if (ST.flashTimer) clearTimeout(ST.flashTimer);
+      ST.flashTimer = setTimeout(function() {{ el.style.opacity = "0"; }},
+                                 CFG.flash_ms || 1000);
+    }} catch (err) {{
+      console.log("[reveal-keymap] toast error:", err);
+    }}
+  }}
+
+  // ── navigation dispatcher ──
+  function nav(action) {{
+    var Reveal = W.Reveal;
+    if (!Reveal || typeof action !== "string") return;
+
+    var dirMap = {{
+      "up":    "navigateUp",
+      "down":  "navigateDown",
+      "left":  "navigateLeft",
+      "right": "navigateRight",
+      "next":  "navigateNext",
+      "prev":  "navigatePrev"
+    }};
+    var fn = dirMap[action.toLowerCase()];
+    if (fn && typeof Reveal[fn] === "function") {{
+      Reveal[fn]();
       return;
     }}
+    if (typeof Reveal[action] === "function") Reveal[action]();
+  }}
 
-    // ── global state (survives re-runs of this cell) ──
-    if (!W.__REVEAL_KEY_REMAP__) {{
-      W.__REVEAL_KEY_REMAP__ = {{
-        enabled:    true,
-        logging:    false,
-        installed:  false,
-        flashTimer: null,
-        keymap:     {{}},
-        toggle:     CFG.toggle
-      }};
-    }}
-    var ST = W.__REVEAL_KEY_REMAP__;
+  function hardStop(e) {{
+    try {{ if (e.cancelable) e.preventDefault(); }} catch (_) {{}}
+    try {{ e.stopImmediatePropagation(); }} catch (_) {{}}
+    try {{ e.stopPropagation(); }} catch (_) {{}}
+    return false;
+  }}
 
-    // Merge the new keymap on top of the old one (allows incremental updates)
-    var k;
-    for (k in CFG.keymap) {{
-      if (CFG.keymap.hasOwnProperty(k)) ST.keymap[k] = CFG.keymap[k];
-    }}
-    ST.toggle = CFG.toggle;
+  function onKeyDown(e) {{
+    var code = e.keyCode || e.which;
+    var codeStr = String(code);
 
-    // ── toast helper ──
-    function flash(message) {{
-      try {{
-        var el = D.getElementById("__reveal_keymap_toast__");
-        if (!el) {{
-          el = D.createElement("div");
-          el.id = "__reveal_keymap_toast__";
-          el.style.cssText =
-            "position:fixed; z-index:999999; left:50%; top:18px;" +
-            "transform:translateX(-50%); padding:10px 14px; border-radius:10px;" +
-            "font-size:16px; font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;" +
-            "letter-spacing:0.2px; box-shadow:0 6px 22px rgba(0,0,0,0.28);" +
-            "background:rgba(0,0,0,0.78); color:white; pointer-events:none;" +
-            "opacity:0; transition:opacity 120ms ease;";
-          D.body.appendChild(el);
-        }}
-        el.textContent = message;
-        el.style.opacity = "1";
-        if (ST.flashTimer) clearTimeout(ST.flashTimer);
-        ST.flashTimer = setTimeout(function() {{ el.style.opacity = "0"; }},
-                                   CFG.flash_ms || 1000);
-      }} catch (err) {{
-        console.log("[reveal-keymap] toast error:", err);
-      }}
+    // Shift+toggle → toggle logging
+    if (code === ST.toggle && !!e.shiftKey && !e.repeat) {{
+      ST.logging = !ST.logging;
+      flash("[keymap] logging " + (ST.logging ? "ON" : "OFF"));
+      return hardStop(e);
     }}
 
-    // ── Tell Reveal to pass our keys through (merge, don't replace) ──
+    // Toggle key (no shift) → enable / disable remapping
+    if (code === ST.toggle && !e.shiftKey && !e.repeat) {{
+      ST.enabled = !ST.enabled;
+      flash("[keymap] " + (ST.enabled ? "ENABLED" : "DISABLED"));
+      return hardStop(e);
+    }}
+
+    // Logging (always fires regardless of enabled state)
+    if (ST.logging) {{
+      console.log("[key]", {{
+        key: e.key, code: e.code, keyCode: code, which: e.which,
+        shift: e.shiftKey, ctrl: e.ctrlKey, alt: e.altKey,
+        meta: e.metaKey, repeat: e.repeat
+      }});
+    }}
+
+    if (!ST.enabled) return;
+
+    // Look up keyCode in our map (string keys for JSON compat)
+    if (ST.keymap.hasOwnProperty(codeStr)) {{
+      hardStop(e);
+      nav(ST.keymap[codeStr]);
+      return false;
+    }}
+  }}
+
+  // ── Install listeners if not already done ──
+  // We install on the TOP document immediately (capture phase).
+  // This works even before Reveal loads — once RISE starts and
+  // Reveal is available, nav() will find it via W.Reveal.
+  if (!ST.installed) {{
+    D.addEventListener("keydown", onKeyDown, true);
+    // Also the iframe document if we're in one
+    if (document !== D) {{
+      document.addEventListener("keydown", onKeyDown, true);
+    }}
+    ST.installed = true;
+    console.log("[reveal-keymap] listeners installed on top document. keymap:", ST.keymap);
+  }}
+
+  // ── Configure Reveal (if available now, or when it appears) ──
+  function configureReveal() {{
+    var Reveal = W.Reveal;
+    if (!Reveal || typeof Reveal.configure !== "function") return false;
+
+    // Merge with existing keyboard config so we don't clobber other bindings
     var existing = {{}};
     try {{
       var cur = Reveal.getConfig().keyboard;
       if (cur && typeof cur === "object") {{
-        for (k in cur) {{ if (cur.hasOwnProperty(k)) existing[k] = cur[k]; }}
+        for (var j in cur) {{ if (cur.hasOwnProperty(j)) existing[j] = cur[j]; }}
       }}
     }} catch (_) {{}}
 
-    for (k in ST.keymap) {{
-      if (ST.keymap.hasOwnProperty(k)) existing[k] = null;
+    for (var m in ST.keymap) {{
+      if (ST.keymap.hasOwnProperty(m)) existing[m] = null;
     }}
     existing[String(ST.toggle)] = null;
     Reveal.configure({{ keyboard: existing }});
-
-    // If listeners are already installed, just update the config and return
-    if (ST.installed) {{
-      flash("[keymap] config updated");
-      return;
-    }}
-
-    // ── navigation dispatcher ──
-    function nav(action) {{
-      if (typeof action !== "string") return;
-
-      // Shorthand directional actions
-      var dirMap = {{
-        "up":    "navigateUp",
-        "down":  "navigateDown",
-        "left":  "navigateLeft",
-        "right": "navigateRight",
-        "next":  "navigateNext",
-        "prev":  "navigatePrev"
-      }};
-      var fn = dirMap[action.toLowerCase()];
-      if (fn && typeof Reveal[fn] === "function") {{
-        Reveal[fn]();
-        return;
-      }}
-      // Raw Reveal method name (e.g. "toggleOverview")
-      if (typeof Reveal[action] === "function") Reveal[action]();
-    }}
-
-    function hardStop(e) {{
-      try {{ if (e.cancelable) e.preventDefault(); }} catch (_) {{}}
-      try {{ e.stopImmediatePropagation(); }} catch (_) {{}}
-      try {{ e.stopPropagation(); }} catch (_) {{}}
-      return false;
-    }}
-
-    function onKeyDown(e) {{
-      var code = e.keyCode || e.which;
-      var codeStr = String(code);
-
-      // Shift+toggle → toggle logging
-      if (code === ST.toggle && !!e.shiftKey && !e.repeat) {{
-        ST.logging = !ST.logging;
-        flash("[keymap] logging " + (ST.logging ? "ON" : "OFF"));
-        return hardStop(e);
-      }}
-
-      // Toggle key (no shift) → enable / disable remapping
-      if (code === ST.toggle && !e.shiftKey && !e.repeat) {{
-        ST.enabled = !ST.enabled;
-        flash("[keymap] " + (ST.enabled ? "ENABLED" : "DISABLED"));
-        return hardStop(e);
-      }}
-
-      // Logging (always fires regardless of enabled state)
-      if (ST.logging) {{
-        console.log("[key]", {{
-          key: e.key, code: e.code, keyCode: code, which: e.which,
-          shift: e.shiftKey, ctrl: e.ctrlKey, alt: e.altKey,
-          meta: e.metaKey, repeat: e.repeat
-        }});
-      }}
-
-      if (!ST.enabled) return;
-
-      // Look up keyCode in our map (string keys for JSON compat)
-      if (ST.keymap.hasOwnProperty(codeStr)) {{
-        hardStop(e);
-        nav(ST.keymap[codeStr]);
-        return false;
-      }}
-    }}
-
-    // ── Attach capture-phase listeners ──
-    // Top-level document (where Reveal lives in RISE)
-    D.addEventListener("keydown", onKeyDown, true);
-    // Also listen on the iframe document where cell output lives,
-    // in case events originate there
-    if (document !== D) {{
-      document.addEventListener("keydown", onKeyDown, true);
-    }}
-
-    ST.installed = true;
-    flash("[keymap] installed — press ` to toggle");
-    console.log("[reveal-keymap] installed.  keymap:", ST.keymap,
-                "  toggle:", ST.toggle);
+    return true;
   }}
 
-  boot();
+  // Try now, and also keep checking periodically until Reveal appears
+  if (!configureReveal()) {{
+    var pollCount = 0;
+    var pollId = setInterval(function() {{
+      pollCount++;
+      if (configureReveal()) {{
+        clearInterval(pollId);
+        flash("[keymap] installed");
+        console.log("[reveal-keymap] Reveal configured after " + pollCount + " polls");
+      }} else if (pollCount > 300) {{
+        // 5 minutes of polling (300 × 1s) — stop but listeners remain active
+        clearInterval(pollId);
+        console.log("[reveal-keymap] gave up waiting for Reveal — listeners still active, will work when RISE starts");
+      }}
+    }}, 1000);
+  }} else {{
+    flash("[keymap] installed");
+  }}
 }})();
 """
     display(HTML(f"<script>{js}</script>"))
