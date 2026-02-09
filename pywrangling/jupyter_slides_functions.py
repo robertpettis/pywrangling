@@ -443,18 +443,24 @@ def apply_beamer_theme(
         // Enable slide numbers so Reveal.js creates the .slide-number element;
         // we overwrite its content with our custom format in updateShell().
         if (typeof window.Reveal.configure === "function") {{
+          // Merge our keyboard overrides with any existing ones
+          // (e.g. from enable_reveal_key_remap) so we don't clobber them.
+          var _kbCfg = {{}};
+          try {{
+            var _cur = window.Reveal.getConfig().keyboard;
+            if (_cur && typeof _cur === "object") {{
+              for (var _k in _cur) {{ if (_cur.hasOwnProperty(_k)) _kbCfg[_k] = _cur[_k]; }}
+            }}
+          }} catch (_) {{}}
+          _kbCfg[188] = null;  // comma key pass-through
+
           window.Reveal.configure({{
             slideNumber: true,
             // Disable touch/swipe navigation — it conflicts with the
             // chalkboard plugin's pen drawing, causing strokes to jerk
             // sideways as Reveal interprets them as slide-change swipes.
             touch: false,
-            // Tell Reveal.js to pass comma key (188) through to the DOM
-            // instead of swallowing it — our capture-phase keydown
-            // listener handles the toggle with e.repeat filtering.
-            keyboard: {{
-              188: null
-            }}
+            keyboard: _kbCfg
           }});
         }}
 
