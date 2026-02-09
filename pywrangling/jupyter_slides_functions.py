@@ -2603,142 +2603,173 @@ def style_slide(
 
 
 
-def enable_reveal_key_remap(
-    keymap: dict,
-    toggle_keycode: int = 192,   # ` backtick
-    start_enabled: bool = True,
-    announce: bool = True,
-):
+def enable_reveal_key_remap(keymap: dict, toggle_keycode: int = 192):
     """
-    Flexible Reveal.js / RISE key remapper.
+    Reveal.js / RISE key remapper using a dict:
+        { keyCode_int : "left|right|up|down" or "RevealMethodName" }
 
-    Parameters
-    ----------
-    keymap : dict
-        Mapping of keycode -> Reveal action or function name.
-        Examples:
-            {32: "up", 27: "down"}
-            {33: "navigateUp", 34: "navigateDown"}
-            {66: "togglePause"}
-
-        Valid actions:
-            "up", "down", "left", "right"
-            OR any Reveal function name without 'Reveal.' prefix.
-
-    toggle_keycode : int
-        Keycode to toggle remapping on/off (default: backtick `).
-
-    start_enabled : bool
-        Whether remapping starts enabled.
-
-    announce : bool
-        Log enable/disable state to console.
-
-    Usage
-    -----
-    enable_reveal_key_remap({
-        32: "up",     # Play  -> vertical up
-        27: "down",   # Stop  -> vertical down
-    })
+    - Toggle remapping on/off with toggle_keycode (default: ` backtick = 192)
+    - Shift+` toggles logging (prints keycodes to console)
+    - Shows a 1-second visual toast on toggle
     """
-
-
+    from IPython.display import Javascript, display
+    import json
 
     cfg = {
         "keymap": {int(k): v for k, v in keymap.items()},
-        "toggle_keycode": int(toggle_keycode),
-        "start_enabled": bool(start_enabled),
-        "announce": bool(announce),
+        "toggle": int(toggle_keycode),
+        "log_toggle_combo": {"shift": True, "keycode": int(toggle_keycode)},
+        "flash_ms": 1000,
     }
 
     js = f"""
 (function() {{
   const CFG = {json.dumps(cfg)};
 
+  // IMPORTANT: operate on the TOP window/document where RISE/Reveal lives
+  const W = window.top || window;
+  const D = W.document;
+
   function boot() {{
-    if (!window.Reveal) {{
+    const Reveal = W.Reveal;
+
+    if (!Reveal || typeof Reveal.configure !== "function") {{
       setTimeout(boot, 100);
       return;
     }}
 
-    if (!window.__REVEAL_KEY_REMAP__) {{
-      window.__REVEAL_KEY_REMAP__ = {{
-        enabled: CFG.start_enabled,
-        installed: false
+    if (!W.__REVEAL_KEY_REMAP3__) {{
+      W.__REVEAL_KEY_REMAP3__ = {{
+        enabled: true,
+        logging: false,
+        installed: false,
+        flashTimer: null
       }};
     }}
 
-    // Prevent Reveal from swallowing remapped keys
-    const nullMap = {{}};
-    for (const code in CFG.keymap) nullMap[code] = null;
-    nullMap[CFG.toggle_keycode] = null;
+    function flash(message) {{
+      try {{
+        let el = D.getElementById("__reveal_keymap_toast__");
+        if (!el) {{
+          el = D.createElement("div");
+          el.id = "__reveal_keymap_toast__";
+          el.style.position = "fixed";
+          el.style.zIndex = "999999";
+          el.style.left = "50%";
+          el.style.top = "18px";
+          el.style.transform = "translateX(-50%)";
+          el.style.padding = "10px 14px";
+          el.style.borderRadius = "10px";
+          el.style.fontSize = "16px";
+          el.style.fontFamily = "system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif";
+          el.style.letterSpacing = "0.2px";
+          el.style.boxShadow = "0 6px 22px rgba(0,0,0,0.28)";
+          el.style.background = "rgba(0,0,0,0.78)";
+          el.style.color = "white";
+          el.style.pointerEvents = "none";
+          el.style.opacity = "0";
+          el.style.transition = "opacity 120ms ease";
+          D.body.appendChild(el);
+        }}
 
-    Reveal.configure({{
-      keyboard: nullMap
-    }});
+        el.textContent = message;
+        el.style.opacity = "1";
 
-    if (window.__REVEAL_KEY_REMAP__.installed) return;
-
-    function logState() {{
-      if (CFG.announce) {{
-        console.log(
-          "[reveal-keymap]",
-          window.__REVEAL_KEY_REMAP__.enabled ? "ENABLED" : "DISABLED"
-        );
+        if (W.__REVEAL_KEY_REMAP3__.flashTimer) {{
+          clearTimeout(W.__REVEAL_KEY_REMAP3__.flashTimer);
+        }}
+        W.__REVEAL_KEY_REMAP3__.flashTimer = setTimeout(() => {{
+          el.style.opacity = "0";
+        }}, CFG.flash_ms || 1000);
+      }} catch (err) {{
+        // don't break nav if toast fails
+        console.log("[reveal-keymap] toast error:", err);
       }}
     }}
 
-    function invoke(action) {{
-      if (typeof action === "string") {{
-        // shorthand directions
-        if (["up","down","left","right"].includes(action)) {{
-          const fn = "navigate" + action[0].toUpperCase() + action.slice(1);
-          if (Reveal[fn]) Reveal[fn]();
-          return;
-        }}
-        // explicit Reveal method
-        if (Reveal[action]) {{
-          Reveal[action]();
-        }}
+    // Tell Reveal to NOT consume our remapped keys (and toggle key)
+    const nullMap = {{}};
+    Object.keys(CFG.keymap).forEach(k => nullMap[k] = null);
+    nullMap[CFG.toggle] = null;
+
+    Reveal.configure({{ keyboard: nullMap }});
+
+    if (W.__REVEAL_KEY_REMAP3__.installed) {{
+      flash("[keymap] already installed");
+      return;
+    }}
+
+    function nav(action) {{
+      if (typeof action !== "string") return;
+
+      if (["up","down","left","right"].includes(action)) {{
+        const fn = "navigate" + action[0].toUpperCase() + action.slice(1);
+        if (typeof Reveal[fn] === "function") Reveal[fn]();
+        return;
       }}
+
+      if (typeof Reveal[action] === "function") Reveal[action]();
+    }}
+
+    function hardStop(e) {{
+      try {{ if (e.cancelable) e.preventDefault(); }} catch (_) {{}}
+      try {{ e.stopImmediatePropagation(); }} catch (_) {{}}
+      try {{ e.stopPropagation(); }} catch (_) {{}}
+      return false;
     }}
 
     function onKeyDown(e) {{
       const code = e.keyCode || e.which;
 
-      // Toggle remapping
-      if (code === CFG.toggle_keycode && !e.repeat) {{
-        window.__REVEAL_KEY_REMAP__.enabled =
-          !window.__REVEAL_KEY_REMAP__.enabled;
-        logState();
-        e.preventDefault();
-        e.stopPropagation();
-        return;
+      // Shift+` toggles logging
+      if (code === CFG.log_toggle_combo.keycode && !!e.shiftKey === !!CFG.log_toggle_combo.shift && !e.repeat) {{
+        W.__REVEAL_KEY_REMAP3__.logging = !W.__REVEAL_KEY_REMAP3__.logging;
+        flash("[keymap] logging " + (W.__REVEAL_KEY_REMAP3__.logging ? "ON" : "OFF"));
+        return hardStop(e);
       }}
 
-      if (!window.__REVEAL_KEY_REMAP__.enabled) return;
+      // ` toggles enabled/disabled
+      if (code === CFG.toggle && !e.repeat && !e.shiftKey) {{
+        W.__REVEAL_KEY_REMAP3__.enabled = !W.__REVEAL_KEY_REMAP3__.enabled;
+        flash("[keymap] " + (W.__REVEAL_KEY_REMAP3__.enabled ? "ENABLED" : "DISABLED"));
+        return hardStop(e);
+      }}
 
-      if (CFG.keymap.hasOwnProperty(code)) {{
-        e.preventDefault();
-        e.stopPropagation();
-        invoke(CFG.keymap[code]);
+      if (W.__REVEAL_KEY_REMAP3__.logging) {{
+        console.log("[key]", {{
+          key: e.key,
+          code: e.code,
+          keyCode: code,
+          which: e.which,
+          shift: e.shiftKey,
+          ctrl: e.ctrlKey,
+          alt: e.altKey,
+          meta: e.metaKey,
+          repeat: e.repeat
+        }});
+      }}
+
+      if (!W.__REVEAL_KEY_REMAP3__.enabled) return;
+
+      if (Object.prototype.hasOwnProperty.call(CFG.keymap, code)) {{
+        hardStop(e);
+        nav(CFG.keymap[code]);
+        return false;
       }}
     }}
 
-    window.addEventListener("keydown", onKeyDown, true);
-    window.__REVEAL_KEY_REMAP__.installed = true;
-    logState();
+    // Attach to TOP document/window (this is the key fix)
+    D.addEventListener("keydown", onKeyDown, true);
+    W.addEventListener("keydown", onKeyDown, true);
+
+    W.__REVEAL_KEY_REMAP3__.installed = true;
+    flash("[keymap] installed");
   }}
 
   boot();
 }})();
 """
     display(Javascript(js))
-
-
-
-
-
 
 
 
