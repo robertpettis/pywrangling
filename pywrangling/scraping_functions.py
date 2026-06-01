@@ -7,6 +7,7 @@ These functions are designed to add utility to web scraping work.
 import time  # Time-related functions
 import warnings  # Warnings control
 import random  # Generate random numbers
+import re  # Regular expressions
 
 # Data Manipulation Libraries
 import pandas as pd  # Data manipulation and analysis
@@ -753,3 +754,83 @@ def describe_element(element: WebElement) -> dict:
             info[key] = val
 
     return info
+
+
+# %% Hometownlocator boundary scraping
+
+def extract_hometownlocator_boundary(url: str) -> dict | None:
+    """
+    Fetch a hometownlocator school profile page and return its boundary as a GeoJSON FeatureCollection.
+
+    Hometownlocator embeds a JavaScript variable on each school profile page:
+        theBoundary={'type':'Feature','geometry':{"type":"MultiPolygon","coordinates":[...]}}
+
+    Coordinates follow the GeoJSON convention: [longitude, latitude].
+
+    The returned FeatureCollection contains one Feature.  Its geometry is always
+    typed as MultiPolygon (even for single-polygon schools), and a 'school_url'
+    property is attached for traceability.
+
+    Parameters:
+    - url (str): Full URL of a hometownlocator school profile page.
+        Example: "https://southcarolina.hometownlocator.com/schools/profiles,n,whitesville%20elementary,z,29461,t,pb,i,1101099.cfm"
+
+    Returns:
+    - dict: A GeoJSON FeatureCollection, or None if the page has no boundary data.
+
+    Notes:
+    - Coordinates are [lng, lat] per the GeoJSON spec.  When passing to Leaflet's
+      L.polygon() you must swap to [lat, lng] and preserve the full three-level
+      nesting (polygon → ring → point).  Collapsing a level causes Leaflet to draw
+      a connecting line between what should be separate, disconnected polygons.
+    - The MultiPolygon coordinate structure is:
+        coordinates[polygon_index][ring_index][point_index] = [lng, lat]
+      For Leaflet: swap innermost pair and keep all three levels intact.
+
+    Example:
+    ```python
+    from pywrangling.scraping_functions import extract_hometownlocator_boundary
+
+    # Single-polygon school
+    fc = extract_hometownlocator_boundary(
+        "https://virginia.hometownlocator.com/schools/profiles,"
+        "n,woodson%20high,z,22031,t,pb,i,1119344.cfm"
+    )
+
+    # Multi-polygon school (two disconnected attendance zones)
+    fc = extract_hometownlocator_boundary(
+        "https://southcarolina.hometownlocator.com/schools/profiles,"
+        "n,whitesville%20elementary,z,29461,t,pb,i,1101099.cfm"
+    )
+
+    geom = fc["features"][0]["geometry"]
+    print(geom["type"])          # MultiPolygon
+    print(len(geom["coordinates"]))  # number of separate polygons
+    ```
+    """
+    import requests
+
+    headers = {"User-Agent": "Mozilla/5.0"}
+    resp = requests.get(url, headers=headers, timeout=15)
+    resp.raise_for_status()
+
+    match = re.search(r"theBoundary=(\{[^\n]+?\});", resp.text)
+    if not match:
+        return None
+
+    raw = match.group(1)
+
+    # The JS object literal uses single-quoted keys; JSON requires double quotes.
+    raw = re.sub(r"'([^']+)'(?=\s*:)", r'"\1"', raw)  # keys
+    raw = re.sub(r":\s*'([^']*)'",      r': "\1"', raw)  # string values
+
+    feature = json.loads(raw)
+
+    if "properties" not in feature or feature["properties"] is None:
+        feature["properties"] = {}
+    feature["properties"]["school_url"] = url
+
+    return {
+        "type": "FeatureCollection",
+        "features": [feature],
+    }
