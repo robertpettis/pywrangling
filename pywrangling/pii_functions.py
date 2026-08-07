@@ -1,8 +1,16 @@
 
 # %% Import Packages
+import base64  # For encoding derived keys and encrypted output
+import io  # In-memory buffers for dataframe serialization
+import os  # For generating random salts
 import random  # To generate random numbers
 import re  # Regular expressions library for string manipulation
 import string  # For alphabet string manipulation
+
+import pandas as pd  # Dataframe handling
+from cryptography.fernet import Fernet  # Authenticated symmetric encryption
+from cryptography.hazmat.primitives import hashes  # Hash algorithms for key derivation
+from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC  # Password-based key derivation
 
 # %% Functions
 
@@ -75,6 +83,86 @@ def repersonalize(data, seed=None):
     return result
 
 
+
+
+def _derive_key(key, salt):
+    """
+    Derive a Fernet-compatible key from a passphrase and salt using PBKDF2.
+
+    Parameters:
+    key (str): The passphrase to derive the key from.
+    salt (bytes): Random salt (16 bytes).
+
+    Returns:
+    bytes: A url-safe base64-encoded 32-byte key for Fernet.
+    """
+    kdf = PBKDF2HMAC(
+        algorithm=hashes.SHA256(),
+        length=32,
+        salt=salt,
+        iterations=480000,
+    )
+    return base64.urlsafe_b64encode(kdf.derive(key.encode("utf-8")))
+
+
+def encrypt_df(df, key, path=None):
+    """
+    Encrypt a dataframe with a passphrase so only someone with the key can recover it.
+
+    The dataframe is serialized to CSV in memory, then encrypted with Fernet
+    (AES-128-CBC + HMAC) using a key derived from the passphrase via PBKDF2
+    with a random salt. The salt is stored alongside the ciphertext, so the
+    only thing you need to keep secret is the passphrase itself.
+
+    Parameters:
+    df (pd.DataFrame): The dataframe to encrypt.
+    key (str): The passphrase. Anyone with this can decrypt, so keep it private.
+    path (str, optional): If given, the encrypted bytes are also written to this file
+        (e.g. 'data.enc'), which can then be committed to a public repo.
+
+    Returns:
+    bytes: The encrypted payload (salt + ciphertext).
+
+    Usage:
+    >>> token = encrypt_df(df, key="my secret passphrase", path="data.enc")
+    """
+    buffer = io.StringIO()
+    df.to_csv(buffer, index=False)
+    salt = os.urandom(16)
+    fernet = Fernet(_derive_key(key, salt))
+    payload = salt + fernet.encrypt(buffer.getvalue().encode("utf-8"))
+
+    if path is not None:
+        with open(path, "wb") as f:
+            f.write(payload)
+
+    return payload
+
+
+def decrypt_df(source, key):
+    """
+    Decrypt a dataframe previously encrypted with encrypt_df.
+
+    Parameters:
+    source (bytes or str): The encrypted payload returned by encrypt_df, or a
+        path to a file it was written to.
+    key (str): The same passphrase used to encrypt. A wrong passphrase raises
+        an error rather than returning garbage data.
+
+    Returns:
+    pd.DataFrame: The original dataframe.
+
+    Usage:
+    >>> df = decrypt_df("data.enc", key="my secret passphrase")
+    """
+    if isinstance(source, str):
+        with open(source, "rb") as f:
+            source = f.read()
+
+    salt, ciphertext = source[:16], source[16:]
+    fernet = Fernet(_derive_key(key, salt))
+    decrypted = fernet.decrypt(ciphertext).decode("utf-8")
+    return pd.read_csv(io.StringIO(decrypted))
 
 
 def shuffle_column_values(values, seed=None):
