@@ -1,6 +1,7 @@
 
 # %% Import Packages
 import base64  # For encoding derived keys and encrypted output
+import hashlib  # For deriving deterministic seeds from passphrases
 import io  # In-memory buffers for dataframe serialization
 import os  # For generating random salts
 import random  # To generate random numbers
@@ -105,7 +106,83 @@ def _derive_key(key, salt):
     return base64.urlsafe_b64encode(kdf.derive(key.encode("utf-8")))
 
 
-def encrypt_df(df, key, path=None):
+def _letter_table(key, inverse=False):
+    """
+    Build a letter-substitution table from a passphrase.
+
+    The passphrase is hashed to seed a shuffle of the alphabet, so the same
+    key always produces the same mapping (e.g. every 'd' becomes 'w').
+    Case is preserved; digits, punctuation, and whitespace are untouched.
+
+    Parameters:
+    key (str): The passphrase the mapping is derived from.
+    inverse (bool): If True, return the reverse mapping to undo the scramble.
+
+    Returns:
+    dict: A translation table for str.translate.
+    """
+    seed = int.from_bytes(hashlib.sha256(key.encode("utf-8")).digest()[:8], "big")
+    letters = list(string.ascii_lowercase)
+    shuffled = letters.copy()
+    random.Random(seed).shuffle(shuffled)
+
+    if inverse:
+        letters, shuffled = shuffled, letters
+
+    mapping = {}
+    for original, replacement in zip(letters, shuffled):
+        mapping[original] = replacement
+        mapping[original.upper()] = replacement.upper()
+    return str.maketrans(mapping)
+
+
+def scramble_letters(df, key):
+    """
+    Make a pseudo-synthetic copy of a dataframe by substituting letters.
+
+    Every letter in every string cell is swapped via a substitution mapping
+    derived from the key (e.g. all 'd's become 'w's), so values keep their
+    shape and look plausible but are no longer the real data. Numbers, dates,
+    and non-string columns are left unchanged. Reversible with
+    unscramble_letters and the same key.
+
+    Note this is obfuscation, not encryption — letter frequencies are
+    preserved, so treat it as a way to make data look-but-not-be real,
+    not as protection for genuinely sensitive values.
+
+    Parameters:
+    df (pd.DataFrame): The dataframe to scramble.
+    key (str): The passphrase the letter mapping is derived from.
+
+    Returns:
+    pd.DataFrame: A scrambled copy of the dataframe.
+
+    Usage:
+    >>> fake_df = scramble_letters(df, key="my secret passphrase")
+    """
+    table = _letter_table(key)
+    return df.apply(lambda col: col.map(lambda v: v.translate(table) if isinstance(v, str) else v))
+
+
+def unscramble_letters(df, key):
+    """
+    Reverse scramble_letters, recovering the original dataframe values.
+
+    Parameters:
+    df (pd.DataFrame): A dataframe scrambled with scramble_letters.
+    key (str): The same passphrase used to scramble.
+
+    Returns:
+    pd.DataFrame: The dataframe with original letters restored.
+
+    Usage:
+    >>> df = unscramble_letters(fake_df, key="my secret passphrase")
+    """
+    table = _letter_table(key, inverse=True)
+    return df.apply(lambda col: col.map(lambda v: v.translate(table) if isinstance(v, str) else v))
+
+
+def encrypt_df(df, key, path=None, scramble=False):
     """
     Encrypt a dataframe with a passphrase so only someone with the key can recover it.
 
@@ -119,6 +196,10 @@ def encrypt_df(df, key, path=None):
     key (str): The passphrase. Anyone with this can decrypt, so keep it private.
     path (str, optional): If given, the encrypted bytes are also written to this file
         (e.g. 'data.enc'), which can then be committed to a public repo.
+    scramble (bool, optional): If True, letters in string cells are first swapped
+        via a key-derived substitution (see scramble_letters), so even the
+        decrypted data is pseudo-synthetic. Pass scramble=True to decrypt_df
+        to fully recover the original values.
 
     Returns:
     bytes: The encrypted payload (salt + ciphertext).
@@ -126,6 +207,9 @@ def encrypt_df(df, key, path=None):
     Usage:
     >>> token = encrypt_df(df, key="my secret passphrase", path="data.enc")
     """
+    if scramble:
+        df = scramble_letters(df, key)
+
     buffer = io.StringIO()
     df.to_csv(buffer, index=False)
     salt = os.urandom(16)
@@ -139,7 +223,7 @@ def encrypt_df(df, key, path=None):
     return payload
 
 
-def decrypt_df(source, key):
+def decrypt_df(source, key, scramble=False):
     """
     Decrypt a dataframe previously encrypted with encrypt_df.
 
@@ -148,6 +232,8 @@ def decrypt_df(source, key):
         path to a file it was written to.
     key (str): The same passphrase used to encrypt. A wrong passphrase raises
         an error rather than returning garbage data.
+    scramble (bool, optional): If the data was encrypted with scramble=True,
+        pass True here as well to reverse the letter substitution.
 
     Returns:
     pd.DataFrame: The original dataframe.
@@ -162,7 +248,12 @@ def decrypt_df(source, key):
     salt, ciphertext = source[:16], source[16:]
     fernet = Fernet(_derive_key(key, salt))
     decrypted = fernet.decrypt(ciphertext).decode("utf-8")
-    return pd.read_csv(io.StringIO(decrypted))
+    df = pd.read_csv(io.StringIO(decrypted))
+
+    if scramble:
+        df = unscramble_letters(df, key)
+
+    return df
 
 
 def shuffle_column_values(values, seed=None):
