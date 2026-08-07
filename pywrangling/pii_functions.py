@@ -136,37 +136,82 @@ def _letter_table(key, inverse=False):
     return str.maketrans(mapping)
 
 
-def scramble_letters(df, key):
+def _oneway_letter_table():
+    """
+    Build a random, many-to-one letter mapping that cannot be undone.
+
+    Each of the 26 letters is independently assigned a random replacement
+    drawn with replacement, so several letters collapse onto the same output
+    (e.g. both 'd' and 'k' might become 'w'). The mapping is generated from
+    os.urandom and never stored, so the original letters are unrecoverable
+    even by whoever ran the scramble.
+
+    Returns:
+    dict: A translation table for str.translate.
+    """
+    rng = random.Random(int.from_bytes(os.urandom(16), "big"))
+    letters = list(string.ascii_lowercase)
+    replacements = rng.choices(letters, k=26)
+
+    mapping = {}
+    for original, replacement in zip(letters, replacements):
+        mapping[original] = replacement
+        mapping[original.upper()] = replacement.upper()
+    return str.maketrans(mapping)
+
+
+def scramble_letters(df, key=None, irreversible=False):
     """
     Make a pseudo-synthetic copy of a dataframe by substituting letters.
 
     Every letter in every string cell is swapped via a substitution mapping
-    derived from the key (e.g. all 'd's become 'w's), so values keep their
-    shape and look plausible but are no longer the real data. Numbers, dates,
-    and non-string columns are left unchanged. Reversible with
-    unscramble_letters and the same key.
+    (e.g. all 'd's become 'w's), so values keep their shape and look plausible
+    but are no longer the real data. Numbers, dates, and non-string columns
+    are left unchanged.
 
-    Note this is obfuscation, not encryption — letter frequencies are
-    preserved, so treat it as a way to make data look-but-not-be real,
-    not as protection for genuinely sensitive values.
+    By default the mapping is derived from the key, so the scramble is
+    reversible with unscramble_letters and the same key. With
+    irreversible=True the mapping is instead generated randomly, never
+    stored, and deliberately collapses several letters onto the same output,
+    so the original values cannot be recovered by anyone — including you.
+
+    Note the reversible mode is obfuscation, not encryption — letter
+    frequencies are preserved, so treat it as a way to make data
+    look-but-not-be real, not as protection for genuinely sensitive values.
+    Even the irreversible mode preserves word lengths and leaves numbers and
+    dates intact, so it is not a substitute for real anonymization of
+    sensitive data.
 
     Parameters:
     df (pd.DataFrame): The dataframe to scramble.
-    key (str): The passphrase the letter mapping is derived from.
+    key (str, optional): The passphrase the letter mapping is derived from.
+        Required unless irreversible=True, where it is ignored.
+    irreversible (bool, optional): If True, use a random throwaway
+        many-to-one mapping that can never be undone.
 
     Returns:
     pd.DataFrame: A scrambled copy of the dataframe.
 
     Usage:
     >>> fake_df = scramble_letters(df, key="my secret passphrase")
+    >>> fake_df = scramble_letters(df, irreversible=True)
     """
-    table = _letter_table(key)
+    if irreversible:
+        table = _oneway_letter_table()
+    elif key is None:
+        raise ValueError("A key is required unless irreversible=True.")
+    else:
+        table = _letter_table(key)
+
     return df.apply(lambda col: col.map(lambda v: v.translate(table) if isinstance(v, str) else v))
 
 
 def unscramble_letters(df, key):
     """
     Reverse scramble_letters, recovering the original dataframe values.
+
+    Only works for key-based scrambles; data scrambled with
+    irreversible=True cannot be recovered by design.
 
     Parameters:
     df (pd.DataFrame): A dataframe scrambled with scramble_letters.
