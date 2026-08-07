@@ -160,7 +160,31 @@ def _oneway_letter_table():
     return str.maketrans(mapping)
 
 
-def scramble_letters(df, key=None, irreversible=False):
+def _scramble_with_table(df, table, exclude):
+    """
+    Apply a letter-translation table to every string cell, skipping excluded columns.
+
+    Parameters:
+    df (pd.DataFrame): The dataframe to transform.
+    table (dict): Translation table for str.translate.
+    exclude (list, optional): Column names to leave untouched. Unknown names
+        raise a ValueError so a typo can't silently scramble the wrong column.
+
+    Returns:
+    pd.DataFrame: The transformed dataframe.
+    """
+    exclude = set(exclude or [])
+    unknown = exclude - set(df.columns)
+    if unknown:
+        raise ValueError(f"exclude contains columns not in the dataframe: {sorted(unknown)}")
+
+    return df.apply(
+        lambda col: col if col.name in exclude
+        else col.map(lambda v: v.translate(table) if isinstance(v, str) else v)
+    )
+
+
+def scramble_letters(df, key=None, irreversible=False, exclude=None):
     """
     Make a pseudo-synthetic copy of a dataframe by substituting letters.
 
@@ -188,13 +212,16 @@ def scramble_letters(df, key=None, irreversible=False):
         Required unless irreversible=True, where it is ignored.
     irreversible (bool, optional): If True, use a random throwaway
         many-to-one mapping that can never be undone.
+    exclude (list, optional): Column names to leave unscrambled (e.g. columns
+        holding dates or codes you want to keep readable). Unknown column
+        names raise a ValueError.
 
     Returns:
     pd.DataFrame: A scrambled copy of the dataframe.
 
     Usage:
     >>> fake_df = scramble_letters(df, key="my secret passphrase")
-    >>> fake_df = scramble_letters(df, irreversible=True)
+    >>> fake_df = scramble_letters(df, irreversible=True, exclude=["state"])
     """
     if irreversible:
         table = _oneway_letter_table()
@@ -203,10 +230,10 @@ def scramble_letters(df, key=None, irreversible=False):
     else:
         table = _letter_table(key)
 
-    return df.apply(lambda col: col.map(lambda v: v.translate(table) if isinstance(v, str) else v))
+    return _scramble_with_table(df, table, exclude)
 
 
-def unscramble_letters(df, key):
+def unscramble_letters(df, key, exclude=None):
     """
     Reverse scramble_letters, recovering the original dataframe values.
 
@@ -216,6 +243,7 @@ def unscramble_letters(df, key):
     Parameters:
     df (pd.DataFrame): A dataframe scrambled with scramble_letters.
     key (str): The same passphrase used to scramble.
+    exclude (list, optional): The same column names excluded when scrambling.
 
     Returns:
     pd.DataFrame: The dataframe with original letters restored.
@@ -224,10 +252,10 @@ def unscramble_letters(df, key):
     >>> df = unscramble_letters(fake_df, key="my secret passphrase")
     """
     table = _letter_table(key, inverse=True)
-    return df.apply(lambda col: col.map(lambda v: v.translate(table) if isinstance(v, str) else v))
+    return _scramble_with_table(df, table, exclude)
 
 
-def encrypt_df(df, key, path=None, scramble=False):
+def encrypt_df(df, key, path=None, scramble=False, exclude=None):
     """
     Encrypt a dataframe with a passphrase so only someone with the key can recover it.
 
@@ -245,6 +273,8 @@ def encrypt_df(df, key, path=None, scramble=False):
         via a key-derived substitution (see scramble_letters), so even the
         decrypted data is pseudo-synthetic. Pass scramble=True to decrypt_df
         to fully recover the original values.
+    exclude (list, optional): Column names to leave unscrambled when
+        scramble=True. Pass the same list to decrypt_df.
 
     Returns:
     bytes: The encrypted payload (salt + ciphertext).
@@ -253,7 +283,7 @@ def encrypt_df(df, key, path=None, scramble=False):
     >>> token = encrypt_df(df, key="my secret passphrase", path="data.enc")
     """
     if scramble:
-        df = scramble_letters(df, key)
+        df = scramble_letters(df, key, exclude=exclude)
 
     buffer = io.StringIO()
     df.to_csv(buffer, index=False)
@@ -268,7 +298,7 @@ def encrypt_df(df, key, path=None, scramble=False):
     return payload
 
 
-def decrypt_df(source, key, scramble=False):
+def decrypt_df(source, key, scramble=False, exclude=None):
     """
     Decrypt a dataframe previously encrypted with encrypt_df.
 
@@ -279,6 +309,8 @@ def decrypt_df(source, key, scramble=False):
         an error rather than returning garbage data.
     scramble (bool, optional): If the data was encrypted with scramble=True,
         pass True here as well to reverse the letter substitution.
+    exclude (list, optional): The same column names excluded when encrypting
+        with scramble=True.
 
     Returns:
     pd.DataFrame: The original dataframe.
@@ -296,7 +328,7 @@ def decrypt_df(source, key, scramble=False):
     df = pd.read_csv(io.StringIO(decrypted))
 
     if scramble:
-        df = unscramble_letters(df, key)
+        df = unscramble_letters(df, key, exclude=exclude)
 
     return df
 
